@@ -1,0 +1,6 @@
+{
+  "name": "Lola-Work Admin",
+  "description": "Panel de administración modular para Lola-Work. Incluye gestión de Galería 3D interactiva con Firebase y Storage, Crítica de Arte con IA, Publicaciones y Miembros.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

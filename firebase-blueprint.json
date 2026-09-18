@@ -1,0 +1,100 @@
+{
+  "entities": {
+    "Critique": {
+      "title": "Critique",
+      "description": "An artwork critique or style critique",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "critiqueText": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["userId", "type", "images", "critiqueText", "createdAt"]
+    },
+    "Recipe": {
+      "title": "Recipe",
+      "description": "A generated recipe",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "ingredientsImages": { "type": "array", "items": { "type": "string" } },
+        "ingredientsText": { "type": "string" },
+        "recipesText": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["userId", "images", "ingredientsText", "recipesText", "createdAt"]
+    },
+    "ArtistResearch": {
+      "title": "ArtistResearch",
+      "description": "Deep research report about an artist's thoughts, artwork, and technique",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "artistName": { "type": "string" },
+        "researchText": { "type": "string" },
+        "youtubeScript": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["userId", "artistName", "researchText", "createdAt"]
+    },
+    "ExhibitionArtwork": {
+      "title": "ExhibitionArtwork",
+      "description": "An artwork created and uploaded for virtual exhibitions",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "artist": { "type": "string" },
+        "url": { "type": "string" },
+        "description": { "type": "string" },
+        "room": { "type": "string" },
+        "price": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["userId", "title", "artist", "url", "description", "room", "createdAt"]
+    },
+    "Gallery3DArtwork": {
+      "title": "Gallery3DArtwork",
+      "description": "An artwork displayed in the 3D Virtual Gallery rooms",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "roomId": { "type": "string" },
+        "roomName": { "type": "string" },
+        "artist": { "type": "string" },
+        "year": { "type": "string" },
+        "medium": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "analysis": { "type": "string" },
+        "palette": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["title", "roomId", "artist", "imageUrl"]
+    }
+  },
+  "firestore": {
+    "/gallery3d/{artworkId}": {
+      "schema": { "$ref": "#/entities/Gallery3DArtwork" },
+      "description": "Stores artworks placed in 3D virtual rooms"
+    },
+    "/users/{userId}/critiques/{critiqueId}": {
+      "schema": { "$ref": "#/entities/Critique" },
+      "description": "Stores user critiques and base64 scaled images"
+    },
+    "/users/{userId}/recipes/{recipeId}": {
+      "schema": { "$ref": "#/entities/Recipe" },
+      "description": "Stores user recipes"
+    },
+    "/users/{userId}/researches/{researchId}": {
+      "schema": { "$ref": "#/entities/ArtistResearch" },
+      "description": "Stores detailed deep research reports on artists"
+    },
+    "/users/{userId}/exhibitions/{exhibitionId}": {
+      "schema": { "$ref": "#/entities/ExhibitionArtwork" },
+      "description": "Stores user custom artworks for exhibitions"
+    }
+  }
+}

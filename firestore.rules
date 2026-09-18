@@ -1,0 +1,125 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} { 
+      allow read, write: if false; 
+    }
+    
+    function isValidId(id) { 
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+
+    function isValidCritique(data, userId) {
+      return data.keys().hasAll(['userId', 'type', 'images', 'critiqueText', 'createdAt']) &&
+             data.keys().size() == 5 &&
+             data.userId == request.auth.uid &&
+             data.userId == userId &&
+             data.type is string && (data.type == 'single' || data.type == 'style') &&
+             data.images is list && data.images.size() > 0 && data.images.size() <= 6 &&
+             data.critiqueText is string && data.critiqueText.size() > 0 && data.critiqueText.size() <= 1000000 &&
+             data.createdAt == request.time;
+    }
+
+    function isValidRecipe(data, userId) {
+      return data.keys().hasAll(['userId', 'images', 'ingredientsText', 'recipesText', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.userId == userId &&
+             data.images is list && data.images.size() <= 10 &&
+             data.ingredientsText is string && data.ingredientsText.size() <= 10000 &&
+             data.recipesText is string && data.recipesText.size() <= 1000000 &&
+             data.createdAt == request.time;
+    }
+
+    function isValidResearch(data, userId) {
+      return data.keys().hasAll(['userId', 'artistName', 'researchText', 'createdAt']) &&
+             (data.keys().size() == 4 || (data.keys().size() == 5 && data.keys().hasAll(['youtubeScript']))) &&
+             data.userId == request.auth.uid &&
+             data.userId == userId &&
+             data.artistName is string && data.artistName.size() > 0 && data.artistName.size() <= 200 &&
+             data.researchText is string && data.researchText.size() > 0 && data.researchText.size() <= 1000000 &&
+             (!data.keys().hasAll(['youtubeScript']) || (data.youtubeScript is string && data.youtubeScript.size() <= 1000000)) &&
+             data.createdAt == request.time;
+    }
+
+    function isValidResearchUpdate(data, userId) {
+      return data.keys().hasAll(['userId', 'artistName', 'researchText', 'createdAt', 'youtubeScript']) &&
+             data.keys().size() == 5 &&
+             data.userId == request.auth.uid &&
+             data.userId == userId &&
+             data.artistName is string && data.artistName.size() > 0 && data.artistName.size() <= 200 &&
+             data.researchText is string && data.researchText.size() > 0 && data.researchText.size() <= 1000000 &&
+             data.youtubeScript is string && data.youtubeScript.size() <= 1000000 &&
+             data.createdAt == existing().createdAt;
+    }
+
+    function isValidExhibitionArtwork(data, userId) {
+      return data.keys().hasAll(['userId', 'title', 'artist', 'url', 'description', 'room', 'createdAt']) &&
+             (data.keys().size() == 7 || (data.keys().size() == 8 && data.keys().hasAll(['price']))) &&
+             data.userId == request.auth.uid &&
+             data.userId == userId &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.artist is string && data.artist.size() > 0 && data.artist.size() <= 200 &&
+             data.url is string && data.url.size() > 0 && data.url.size() <= 1048576 &&
+             data.description is string && data.description.size() <= 100000 &&
+             data.room is string && data.room.size() <= 200 &&
+             (!data.keys().hasAll(['price']) || (data.price is string && data.price.size() <= 100)) &&
+             data.createdAt == request.time;
+    }
+
+    match /_internal_/connection_test {
+      allow read: if true;
+    }
+
+    match /posts/{postId} {
+      allow read, write: if true;
+    }
+
+    match /gallery/{itemId} {
+      allow read, write: if true;
+    }
+
+    match /gallery3d/{artworkId} {
+      allow read, write: if true;
+    }
+
+    match /presets/{presetId} {
+      allow read, write: if true;
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/critiques/{critiqueId} {
+      allow read, delete: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidCritique(incoming(), userId);
+      allow update: if false;
+    }
+    
+    match /users/{userId}/recipes/{recipeId} {
+      allow read, delete: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidRecipe(incoming(), userId);
+      allow update: if false;
+    }
+
+    match /users/{userId}/researches/{researchId} {
+      allow read, delete: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidResearch(incoming(), userId);
+      allow update: if isSignedIn() && request.auth.uid == userId && isValidResearchUpdate(incoming(), userId);
+    }
+
+    match /users/{userId}/exhibitions/{exhibitionId} {
+      allow read, delete: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidExhibitionArtwork(incoming(), userId);
+      allow update: if false;
+    }
+  }
+}
