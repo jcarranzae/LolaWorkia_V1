@@ -4,11 +4,34 @@ import React, { useState } from 'react';
 import { Link } from '@/context/NavigationContext';
 import { useAuth } from '@/context/AuthContext';
 import { Icons } from '@/components/Icons';
+import { SEOHead } from '@/components/SEOHead';
 
 export default function BlogListPage() {
   const { blogPosts, user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  const blogCollectionSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    '@id': 'https://lolaworkia.com/blog#collection',
+    name: 'Cyberart Dispatches — Lola Workia Magazine',
+    description: 'Ensayos críticos, tratados teóricos e investigaciones curatoriales sobre estética post-digital, algoritmos generativos y ciberarte.',
+    url: 'https://lolaworkia.com/blog',
+    inLanguage: 'es-ES',
+    publisher: {
+      '@type': 'Organization',
+      name: 'Lola Workia',
+      url: 'https://lolaworkia.com',
+    },
+    blogPost: blogPosts.map((p) => ({
+      '@type': 'BlogPosting',
+      headline: p.title,
+      url: `https://lolaworkia.com/blog/${p.slug}`,
+      datePublished: p.date,
+      image: p.imageUrl,
+    })),
+  };
 
   const vanguardCategories = [
     'All',
@@ -37,6 +60,13 @@ export default function BlogListPage() {
 
   return (
     <div className="container" style={{ paddingTop: '3rem' }}>
+      <SEOHead
+        title="Cyberart Dispatches & Revista de Vanguardia"
+        description="Ensayos críticos, tratados teóricos e investigaciones curatoriales sobre estética post-digital, algoritmos generativos, WebXR y fotografía por Lola Workia."
+        canonicalUrl="https://lolaworkia.com/blog"
+        ogType="website"
+        jsonLd={blogCollectionSchema}
+      />
       
       {/* Page Header (DESIGN.md §3 /magazine) */}
       <div style={{ textAlign: 'center', maxWidth: '760px', margin: '0 auto 3.8rem auto' }}>

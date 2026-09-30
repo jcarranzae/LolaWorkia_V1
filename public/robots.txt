@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+Disallow: /miembros/admin
+Disallow: /api/
+
+# AI Crawlers explicit access for Generative Engine Optimization (GEO)
+User-agent: GPTBot
+Allow: /
+Allow: /blog/
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /blog/
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /blog/
+
+User-agent: Google-Extended
+Allow: /
+Allow: /blog/
+
+Sitemap: https://lolaworkia.com/sitemap.xml

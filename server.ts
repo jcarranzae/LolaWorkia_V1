@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
@@ -10,6 +11,17 @@ async function startServer() {
   // We are going to accept up to 50mb of json data.
   app.use(express.json({ limit: "50mb" }));
   app.use(express.static(path.join(process.cwd(), "public")));
+
+  // SEO & Crawler endpoints
+  app.get("/robots.txt", (req, res) => {
+    res.type("text/plain");
+    res.sendFile(path.join(process.cwd(), "public", "robots.txt"));
+  });
+
+  app.get("/sitemap.xml", (req, res) => {
+    res.type("application/xml");
+    res.sendFile(path.join(process.cwd(), "public", "sitemap.xml"));
+  });
 
   // High-performance image proxy with CORS headers for Three.js WebGL & Firebase Storage textures
   app.get("/api/image-proxy", async (req, res) => {

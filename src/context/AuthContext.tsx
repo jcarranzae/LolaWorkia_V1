@@ -121,9 +121,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const savedCategories = localStorage.getItem('lola_categories') || localStorage.getItem('aura_categories');
 
       if (savedUser) setUser(JSON.parse(savedUser));
-      if (savedUsersList) setUsersList(JSON.parse(savedUsersList));
-      if (savedPosts) setBlogPosts(JSON.parse(savedPosts));
-      if (savedGallery) setGalleryItems(JSON.parse(savedGallery));
+      if (savedPosts) {
+        try {
+          const parsed = JSON.parse(savedPosts) as BlogPost[];
+          const mergedWithFreshInitials = parsed.map((p) => {
+            const fresh = INITIAL_BLOG_POSTS.find((init) => init.id === p.id || init.slug === p.slug);
+            return fresh || p;
+          });
+          INITIAL_BLOG_POSTS.forEach((init) => {
+            if (!mergedWithFreshInitials.some((m) => m.id === init.id || m.slug === init.slug)) {
+              mergedWithFreshInitials.push(init);
+            }
+          });
+          setBlogPosts(mergedWithFreshInitials);
+        } catch {
+          setBlogPosts(INITIAL_BLOG_POSTS);
+        }
+      } else {
+        setBlogPosts(INITIAL_BLOG_POSTS);
+      }
       if (savedGallery3D) setGallery3dArtworks(JSON.parse(savedGallery3D));
       if (savedCategories) {
         const parsed = JSON.parse(savedCategories);

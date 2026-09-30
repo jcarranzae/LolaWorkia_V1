@@ -5,8 +5,28 @@ import { Link, useNavigation } from '@/context/NavigationContext';
 import { useAuth } from '@/context/AuthContext';
 import { Icons } from '@/components/Icons';
 import { Comment } from '@/types';
-import { Lock, Heart, ArrowRight, MessageSquare, Sparkles, BookOpen, Key } from 'lucide-react';
+import { Lock, Heart, ArrowRight, MessageSquare, Sparkles, BookOpen, Key, HelpCircle } from 'lucide-react';
 import ArticleRenderer from '@/components/ArticleRenderer';
+import { SEOHead } from '@/components/SEOHead';
+
+function formatToISO(dateStr?: string): string {
+  if (!dateStr) return new Date().toISOString().split('T')[0];
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr;
+  
+  const months: Record<string, string> = {
+    ene: '01', feb: '02', mar: '03', abr: '04', may: '05', jun: '06',
+    jul: '07', ago: '08', sep: '09', oct: '10', nov: '11', dic: '12',
+    jan: '01', apr: '04', aug: '08', dec: '12'
+  };
+  const match = dateStr.match(/(\d{1,2})\s+([a-zA-Z]{3})\s+(\d{4})/i);
+  if (match) {
+    const day = match[1].padStart(2, '0');
+    const month = months[match[2].toLowerCase()] || '01';
+    const year = match[3];
+    return `${year}-${month}-${day}`;
+  }
+  return new Date().toISOString().split('T')[0];
+}
 
 export default function SingleBlogPostPage({ slug }: { slug?: string }) {
   const { selectedBlogSlug } = useNavigation();
@@ -64,27 +84,88 @@ export default function SingleBlogPostPage({ slug }: { slug?: string }) {
     setNewComment('');
   };
 
-  // Structured Data Schema.org for Academic Cyberart SEO & Google AI Overviews
-  const jsonLdSchema = {
+  // Build Canonical URL and ISO 8601 Date for GEO & Search Engines
+  const canonicalUrl = post.canonicalUrl || `https://lolaworkia.com/blog/${post.slug}`;
+  const isoDate = formatToISO(post.date);
+
+  // Structured Data Schema.org @graph for Google Rich Snippets & AI Engines (Perplexity, ChatGPT, Gemini)
+  const jsonLdGraph = {
     '@context': 'https://schema.org',
-    '@type': post.schemaType || 'ScholarlyArticle',
-    headline: post.metaTitle || post.title,
-    description: post.metaDescription || post.excerpt,
-    image: [post.imageUrl],
-    datePublished: post.date,
-    author: {
-      '@type': 'Person',
-      name: post.author.name,
-    },
-    ...(post.keywords ? { keywords: post.keywords } : {}),
-    ...(post.canonicalUrl ? { mainEntityOfPage: post.canonicalUrl } : {}),
+    '@graph': [
+      {
+        '@type': post.schemaType || 'BlogPosting',
+        '@id': `${canonicalUrl}#article`,
+        isPartOf: {
+          '@type': 'WebSite',
+          '@id': 'https://lolaworkia.com/#website',
+          name: 'Lola Workia',
+          url: 'https://lolaworkia.com',
+        },
+        headline: post.metaTitle || post.title,
+        description: post.metaDescription || post.excerpt,
+        image: [post.imageUrl],
+        datePublished: isoDate,
+        dateModified: isoDate,
+        inLanguage: 'es-ES',
+        mainEntityOfPage: canonicalUrl,
+        author: {
+          '@type': 'Person',
+          name: post.author.name,
+          url: 'https://lolaworkia.com/bio',
+        },
+        publisher: {
+          '@type': 'Organization',
+          name: 'Lola Workia',
+          url: 'https://lolaworkia.com',
+          logo: {
+            '@type': 'ImageObject',
+            url: post.author.avatar || 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=200&q=80',
+          },
+        },
+        ...(post.keywords ? { keywords: post.keywords } : {}),
+        isAccessibleForFree: !post.isExclusive,
+        ...(post.isExclusive
+          ? {
+              hasPart: {
+                '@type': 'WebPageElement',
+                isAccessibleForFree: false,
+                cssSelector: '.blog-article-body',
+              },
+            }
+          : {}),
+      },
+      ...(post.faqItems && post.faqItems.length > 0
+        ? [
+            {
+              '@type': 'FAQPage',
+              '@id': `${canonicalUrl}#faq`,
+              mainEntity: post.faqItems.map((item) => ({
+                '@type': 'Question',
+                name: item.question,
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: item.answer,
+                },
+              })),
+            },
+          ]
+        : []),
+    ],
   };
 
   return (
     <article className="container" style={{ paddingTop: '3rem', maxWidth: '880px' }}>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSchema) }}
+      <SEOHead
+        title={post.metaTitle || post.title}
+        description={post.metaDescription || post.excerpt}
+        keywords={post.keywords}
+        canonicalUrl={canonicalUrl}
+        ogImage={post.imageUrl}
+        ogType="article"
+        author={post.author.name}
+        publishedTime={isoDate}
+        modifiedTime={isoDate}
+        jsonLd={jsonLdGraph}
       />
 
       {/* Back to Magazine */}
@@ -240,6 +321,37 @@ export default function SingleBlogPostPage({ slug }: { slug?: string }) {
                   {post.keyTakeaways}
                 </div>
               </div>
+            )}
+
+            {/* Interactive FAQ Section for GEO Grounding & Reader Utility */}
+            {post.faqItems && post.faqItems.length > 0 && (
+              <section style={{ marginTop: '3.5rem' }}>
+                <div className="mono-meta" style={{ color: 'var(--neon-cyan)', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <HelpCircle size={16} /> PREGUNTAS FRECUENTES & SÍNTESIS CONCEPTUAL (GEO)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {post.faqItems.map((item, idx) => (
+                    <details
+                      key={idx}
+                      className="glass-panel"
+                      style={{
+                        padding: '1.2rem 1.4rem',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                      }}
+                      open
+                    >
+                      <summary style={{ fontWeight: 600, color: 'var(--neon-cyan)', fontSize: '0.95rem', cursor: 'pointer', outline: 'none' }}>
+                        {item.question}
+                      </summary>
+                      <p style={{ marginTop: '0.8rem', color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: '1.7', margin: '0.8rem 0 0 0' }}>
+                        {item.answer}
+                      </p>
+                    </details>
+                  ))}
+                </div>
+              </section>
             )}
 
             {/* Like & Share Bar */}

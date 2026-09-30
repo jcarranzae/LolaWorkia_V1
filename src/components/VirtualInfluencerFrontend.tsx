@@ -39,6 +39,8 @@ import { db } from "../firebase";
 import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, deleteDoc, doc } from "firebase/firestore";
 import { handleFirestoreError, OperationType } from "../utils/error";
 import Markdown from "react-markdown";
+import { Link } from "@/context/NavigationContext";
+import { INITIAL_BLOG_POSTS } from "@/data/mockBlog";
 
 interface VirtualInfluencerFrontendProps {
   user: User | null;
@@ -372,38 +374,6 @@ export default function VirtualInfluencerFrontend({ user, onGoToAdmin }: Virtual
     ]
   };
 
-  const blogPosts = [
-    {
-      id: 1,
-      title: "La muerte de la firma: el arte en la era de los algoritmos",
-      excerpt: "Cuando una IA genera una imagen, ¿dónde reside la autoría? Una disertación sobre la descentralización creativa, el prompter como director de orquesta y la disolución del 'ego' del artista en el arte generativo contemporáneo.",
-      date: "2026-06-15",
-      readTime: "6 min read",
-      category: "Filosofía del Arte",
-      accent: "from-purple-500 to-pink-500",
-      content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
-    },
-    {
-      id: 2,
-      title: "Ciberfeminismo y net.art: recuperando los espacios virtuales",
-      excerpt: "De Donna Haraway a las colectivas de net.art de los años 90. Analizamos cómo el ciberespacio se convirtió en un territorio fértil para hackear el binario de género, crear identidades fluidas y repensar la interfaz hombre-máquina.",
-      date: "2026-06-08",
-      readTime: "8 min read",
-      category: "Ciberfeminismo",
-      accent: "from-cyan-500 to-blue-500",
-      content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
-    },
-    {
-      id: 3,
-      title: "El renacer de los Glitches como manifestación estética",
-      excerpt: "El error de software no es un fracaso; es la revelación de la máquina. Exploramos la historia del glitch art y por qué el ruido analógico y los fallos de renderizado son los verdaderos óleos y pinceles del siglo XXI.",
-      date: "2026-05-29",
-      readTime: "5 min read",
-      category: "Estética Digital",
-      accent: "from-amber-500 to-orange-500",
-      content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
-    }
-  ];
 
   const exhibitions = [
     {
@@ -487,17 +457,19 @@ export default function VirtualInfluencerFrontend({ user, onGoToAdmin }: Virtual
     return timeB - timeA;
   });
 
-  const defaultBlogPosts = blogPosts.map(p => ({
+  const defaultBlogPosts = INITIAL_BLOG_POSTS.map((p) => ({
     id: `editorial-${p.id}`,
+    slug: p.slug,
     title: p.title,
     excerpt: p.excerpt,
     content: p.content,
-    date: new Date(p.date).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" }),
+    date: p.date,
     category: p.category,
     categoryKey: "editorial" as const,
-    images: [] as string[],
-    accent: p.accent,
-    readTime: p.readTime || "5 min read"
+    sourceCollection: "editorial" as const,
+    images: [p.imageUrl],
+    accent: "from-purple-500 to-pink-500",
+    readTime: p.readTime || "7 min read",
   }));
 
   const allPosts = [...combinedFirebasePosts, ...defaultBlogPosts];
@@ -913,9 +885,21 @@ export default function VirtualInfluencerFrontend({ user, onGoToAdmin }: Virtual
                           </h3>
                           
                           {!isExpanded && (
-                            <p className="text-[13px] text-stone-600 font-light leading-relaxed">
-                              {post.excerpt}
-                            </p>
+                            <>
+                              <p className="text-[13px] text-stone-600 font-light leading-relaxed">
+                                {post.excerpt}
+                              </p>
+                              {'slug' in post && post.slug && (
+                                <div className="pt-1">
+                                  <Link
+                                    href={`/blog/${post.slug}`}
+                                    className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider text-indigo-600 hover:text-indigo-800 transition-colors font-medium"
+                                  >
+                                    Leer monografía completa <ArrowRight className="w-3 h-3" />
+                                  </Link>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
 
