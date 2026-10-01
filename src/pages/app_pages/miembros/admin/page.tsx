@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Markdown from 'react-markdown';
 import { Link } from '@/context/NavigationContext';
 import { useAuth } from '@/context/AuthContext';
@@ -40,7 +40,8 @@ import {
   Heading3,
   Quote,
   Code,
-  Type
+  Type,
+  ArrowLeft
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -77,6 +78,22 @@ export default function AdminDashboardPage() {
   const [uploadGalleryStatus, setUploadGalleryStatus] = useState<{ message: string; isError?: boolean } | null>(null);
 
   const [activeTab, setActiveTab] = useState<'posts' | 'gallery' | 'gallery3d' | 'art-critique' | 'researches' | 'users' | 'analytics'>('posts');
+  const [postsSubView, setPostsSubView] = useState<'list' | 'editor'>('list');
+  const [postSearchQuery, setPostSearchQuery] = useState('');
+  const [selectedPostCategory, setSelectedPostCategory] = useState('All');
+
+  const filteredPosts = useMemo(() => {
+    return blogPosts.filter((p) => {
+      const matchesCat = selectedPostCategory === 'All' || p.category === selectedPostCategory;
+      const query = postSearchQuery.toLowerCase().trim();
+      if (!query) return matchesCat;
+      const matchesTitle = p.title?.toLowerCase().includes(query);
+      const matchesSlug = p.slug?.toLowerCase().includes(query);
+      const matchesCatName = p.category?.toLowerCase().includes(query);
+      const matchesExcerpt = p.excerpt?.toLowerCase().includes(query);
+      return matchesCat && (matchesTitle || matchesSlug || matchesCatName || matchesExcerpt);
+    });
+  }, [blogPosts, selectedPostCategory, postSearchQuery]);
 
   // Extended Post State with SEO & GEO AI Optimization
   const [newPost, setNewPost] = useState({
@@ -209,14 +226,14 @@ export default function AdminDashboardPage() {
             <Icons.ShieldCheck size={32} />
           </div>
 
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem', fontWeight: 700, marginBottom: '1rem', color: '#f87171' }}>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800, marginBottom: '1rem', color: '#f87171' }}>
             Acceso Denegado: Exclusivo Administrador
           </h1>
           <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6', marginBottom: '2rem' }}>
             Esta zona de administración avanzada requiere la cuenta de usuario con rol de Administrador.
           </p>
 
-          <Link href="/login" className="btn-primary" style={{ background: '#ef4444', color: '#fff' }}>
+          <Link href="/login" className="btn-cyan">
             <Icons.ShieldCheck size={18} /> Iniciar Sesión como Administrador
           </Link>
         </div>
@@ -323,6 +340,7 @@ export default function AdminDashboardPage() {
     }
 
     setUploadImageStatus(null);
+    setPostsSubView('editor');
     window.scrollTo({ top: 320, behavior: 'smooth' });
   };
 
@@ -348,13 +366,15 @@ export default function AdminDashboardPage() {
 
     if (editingPostId) {
       await updateBlogPost(editingPostId, postPayload);
-      alert('¡Publicación actualizada con éxito en la plataforma!');
+      setActionFeedback({ message: '¡Publicación actualizada con éxito en la plataforma!', type: 'success' });
     } else {
       await addBlogPost(postPayload);
-      alert('¡Publicación optimizada para SEO & IA creada y guardada con éxito en la plataforma!');
+      setActionFeedback({ message: '¡Publicación optimizada para SEO & IA creada y guardada con éxito!', type: 'success' });
     }
+    setTimeout(() => setActionFeedback(null), 5000);
 
     resetPostForm();
+    setPostsSubView('list');
   };
 
   const handleAddNewCategory = async (e: React.FormEvent) => {
@@ -362,10 +382,12 @@ export default function AdminDashboardPage() {
     if (!newCategoryName.trim()) return;
     const res = await addCategory(newCategoryName);
     if (!res.success) {
-      alert(res.message);
+      setActionFeedback({ message: res.message || 'Error al añadir la categoría', type: 'error' });
     } else {
       setNewCategoryName('');
+      setActionFeedback({ message: `Categoría "${newCategoryName}" añadida con éxito.`, type: 'success' });
     }
+    setTimeout(() => setActionFeedback(null), 5000);
   };
 
   const handleGalleryImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -501,7 +523,8 @@ export default function AdminDashboardPage() {
   const handleCreate3DArtwork = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!new3DArtwork.title || !new3DArtwork.imageUrl) {
-      alert('Por favor completa el título y la URL/archivo de la imagen.');
+      setActionFeedback({ message: 'Por favor completa el título y la imagen de la obra 3D.', type: 'error' });
+      setTimeout(() => setActionFeedback(null), 5000);
       return;
     }
 
@@ -570,20 +593,20 @@ export default function AdminDashboardPage() {
   return (
     <div className="container max-w-6xl mx-auto px-4 sm:px-6 md:px-12 py-8 flex flex-col gap-8">
       {/* Header Banner */}
-      <div className="glass-panel rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-red-500/20 bg-gradient-to-br from-red-500/10 via-[#11131F] to-[#08090E]">
+      <div className="glass-panel rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-[#06B6D4]/30 bg-gradient-to-br from-[#06B6D4]/10 via-[#11131F] to-[#08090E]">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center shrink-0 border border-red-500/20">
+          <div className="w-12 h-12 rounded-full bg-[#06B6D4]/10 text-[#06B6D4] flex items-center justify-center shrink-0 border border-[#06B6D4]/30 shadow-[0_0_15px_rgba(6,182,212,0.15)]">
             <Icons.ShieldCheck size={26} />
           </div>
           <div>
             <h1 className="font-syne font-bold text-2xl text-white mb-1 flex items-center flex-wrap gap-3">
               Panel de Control Administrador
-              <span className="font-mono text-[10px] px-2 py-1 bg-white/10 text-[#94A3B8] rounded uppercase tracking-wider">
+              <span className="font-mono text-[10px] px-2.5 py-1 bg-[#06B6D4]/15 text-[#06B6D4] border border-[#06B6D4]/30 rounded uppercase tracking-wider font-bold">
                 SEO &amp; GEO READY
               </span>
             </h1>
             <p className="text-[#94A3B8] text-sm leading-relaxed">
-              Publicaciones optimizadas para buscadores (Google) y motores de IA (ChatGPT, Perplexity, Gemini).
+              Gestión editorial integral y publicaciones optimizadas para buscadores (Google) y motores de IA (ChatGPT, Perplexity, Gemini).
             </p>
           </div>
         </div>
@@ -625,7 +648,7 @@ export default function AdminDashboardPage() {
           onClick={() => setActiveTab('posts')}
           className={`pb-3 px-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
             activeTab === 'posts'
-              ? 'text-red-400 border-b-2 border-red-400'
+              ? 'text-[#06B6D4] border-b-2 border-[#06B6D4]'
               : 'text-[#94A3B8] hover:text-white'
           }`}
         >
@@ -636,7 +659,7 @@ export default function AdminDashboardPage() {
           onClick={() => setActiveTab('gallery')}
           className={`pb-3 px-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
             activeTab === 'gallery'
-              ? 'text-red-400 border-b-2 border-red-400'
+              ? 'text-[#06B6D4] border-b-2 border-[#06B6D4]'
               : 'text-[#94A3B8] hover:text-white'
           }`}
         >
@@ -661,7 +684,7 @@ export default function AdminDashboardPage() {
           onClick={() => setActiveTab('art-critique')}
           className={`pb-3 px-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
             activeTab === 'art-critique'
-              ? 'text-red-400 border-b-2 border-red-400'
+              ? 'text-[#06B6D4] border-b-2 border-[#06B6D4]'
               : 'text-[#94A3B8] hover:text-white'
           }`}
         >
@@ -672,7 +695,7 @@ export default function AdminDashboardPage() {
           onClick={() => setActiveTab('researches')}
           className={`pb-3 px-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
             activeTab === 'researches'
-              ? 'text-red-400 border-b-2 border-red-400'
+              ? 'text-[#06B6D4] border-b-2 border-[#06B6D4]'
               : 'text-[#94A3B8] hover:text-white'
           }`}
         >
@@ -683,7 +706,7 @@ export default function AdminDashboardPage() {
           onClick={() => setActiveTab('users')}
           className={`pb-3 px-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
             activeTab === 'users'
-              ? 'text-red-400 border-b-2 border-red-400'
+              ? 'text-[#06B6D4] border-b-2 border-[#06B6D4]'
               : 'text-[#94A3B8] hover:text-white'
           }`}
         >
@@ -694,7 +717,7 @@ export default function AdminDashboardPage() {
           onClick={() => setActiveTab('analytics')}
           className={`pb-3 px-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
             activeTab === 'analytics'
-              ? 'text-red-400 border-b-2 border-red-400'
+              ? 'text-[#06B6D4] border-b-2 border-[#06B6D4]'
               : 'text-[#94A3B8] hover:text-white'
           }`}
         >
@@ -704,963 +727,1048 @@ export default function AdminDashboardPage() {
 
       {/* TAB 1: POSTS MANAGEMENT WITH COMPLETE SEO & GEO OPTIMIZATION */}
       {activeTab === 'posts' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '3rem', alignItems: 'start' }}>
-          {/* New / Edit Post Form */}
-          <div className="glass-panel" style={{ padding: '2.5rem' }}>
-            <div style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1rem', marginBottom: '1.8rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1.3rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  {editingPostId ? (
-                    <>
-                      <Icons.Edit size={20} color="var(--accent-gold)" /> Editar Publicación Existente
-                    </>
-                  ) : (
-                    <>
-                      <Icons.Sparkles size={20} color="var(--accent-gold)" /> Crear Publicación Optimizada (SEO & IA)
-                    </>
-                  )}
-                </h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
-                  {editingPostId
-                    ? 'Modifica los campos del artículo. Los cambios se actualizarán inmediatamente.'
-                    : 'Rellena los campos de contenido, posicionamiento web y marcado estructurado para modelos de lenguaje.'}
-                </p>
-              </div>
+        <div className="flex flex-col gap-6">
+          {/* Sub-view Navigation Bar & Filters */}
+          <div className="glass-panel p-4 rounded-xl border border-white/10 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setPostsSubView('list')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                  postsSubView === 'list'
+                    ? 'bg-[#06B6D4] text-black shadow-[0_0_15px_rgba(6,182,212,0.3)]'
+                    : 'bg-white/5 text-[#94A3B8] hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Icons.FileText size={16} /> Catálogo de Publicaciones ({blogPosts.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  resetPostForm();
+                  setPostsSubView('editor');
+                }}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                  postsSubView === 'editor' && !editingPostId
+                    ? 'bg-[#06B6D4] text-black shadow-[0_0_15px_rgba(6,182,212,0.3)]'
+                    : 'bg-white/5 text-[#94A3B8] hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Icons.Plus size={16} /> Nueva Publicación
+              </button>
 
               {editingPostId && (
                 <button
                   type="button"
-                  onClick={resetPostForm}
-                  className="btn-secondary"
-                  style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', borderColor: '#f87171', color: '#f87171' }}
+                  onClick={() => setPostsSubView('editor')}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                    postsSubView === 'editor'
+                      ? 'bg-amber-400 text-black shadow-[0_0_15px_rgba(251,191,36,0.3)]'
+                      : 'bg-white/5 text-amber-300 hover:bg-white/10'
+                  }`}
                 >
-                  <Icons.X size={14} /> Cancelar Edición
+                  <Icons.Edit size={16} /> Editando Borrador
                 </button>
               )}
             </div>
 
-            <form onSubmit={handleCreatePost} style={{ display: 'flex', flexDirection: 'column', gap: '1.8rem' }}>
-              
-              {/* SECTION 1: MAIN CONTENT */}
-              <div style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '1.2rem' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent-gold)', marginBottom: '1rem' }}>
-                  📌 1. Contenido General del Artículo
-                </div>
+            {postsSubView === 'list' && (
+              <div className="flex items-center gap-3 flex-wrap">
+                <select
+                  value={selectedPostCategory}
+                  onChange={(e) => setSelectedPostCategory(e.target.value)}
+                  className="input-field text-xs py-2 px-3 bg-black/40 border-white/10 rounded-lg text-[#F1F5F9] cursor-pointer"
+                >
+                  <option value="All">Todas las Categorías</option>
+                  {categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>Título Principal (H1) *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ej. Guía Completa de Fotografía y Edición para 2026"
-                      className="input-field"
-                      value={newPost.title}
-                      onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>Slug Permalink (URL)</label>
-                      <input
-                        type="text"
-                        placeholder="guia-fotografia-2026"
-                        className="input-field"
-                        value={newPost.slug}
-                        onChange={(e) => setNewPost({ ...newPost, slug: e.target.value })}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>Categoría</label>
-                      <select
-                        className="input-field"
-                        value={newPost.category}
-                        onChange={(e) => setNewPost({ ...newPost, category: e.target.value })}
-                      >
-                        {categories.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {cat}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-subtle)', padding: '1rem', borderRadius: 'var(--radius-sm)' }}>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--accent-gold)' }}>
-                        📸 Imagen de Portada (Firebase Storage / Archivo Local)
-                      </label>
-
-                      <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          id="blogCoverFileInput"
-                          style={{ display: 'none' }}
-                          onChange={handleImageFileUpload}
-                        />
-                        <label
-                          htmlFor="blogCoverFileInput"
-                          className="btn-secondary"
-                          style={{
-                            padding: '0.6rem 1.1rem',
-                            fontSize: '0.8rem',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            background: 'rgba(255, 255, 255, 0.08)',
-                            border: '1px solid var(--accent-gold)',
-                            color: '#fff',
-                          }}
-                        >
-                          <Icons.Camera size={16} /> Seleccionar Imagen de tu Equipo
-                        </label>
-
-                        {isUploadingImage && (
-                          <span style={{ fontSize: '0.8rem', color: 'var(--accent-gold)', fontWeight: 600 }}>
-                            ⚡ Subiendo a Firebase Storage...
-                          </span>
-                        )}
-                      </div>
-
-                      {uploadImageStatus && (
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            color: uploadImageStatus.isError ? '#f87171' : '#4ade80',
-                            marginBottom: '0.8rem',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {uploadImageStatus.message}
-                        </div>
-                      )}
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'center' }}>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>URL Final / Generada por Firebase</label>
-                          <input
-                            type="text"
-                            placeholder="https://firebasestorage.googleapis.com/..."
-                            className="input-field"
-                            style={{ fontSize: '0.8rem' }}
-                            value={newPost.imageUrl}
-                            onChange={(e) => setNewPost({ ...newPost, imageUrl: e.target.value })}
-                          />
-                        </div>
-
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Texto Alt de Imagen (SEO Visual)</label>
-                          <input
-                            type="text"
-                            placeholder="Ej. Cámara sobre mesa..."
-                            className="input-field"
-                            style={{ fontSize: '0.8rem' }}
-                            value={newPost.imageAlt}
-                            onChange={(e) => setNewPost({ ...newPost, imageAlt: e.target.value })}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Image Thumbnail Preview */}
-                      {newPost.imageUrl && (
-                        <div style={{ marginTop: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.8rem', background: 'rgba(0,0,0,0.4)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                          <img
-                            src={newPost.imageUrl}
-                            alt="Previsualización"
-                            style={{ width: '90px', height: '55px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}
-                          />
-                          <div style={{ overflow: 'hidden' }}>
-                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fff' }}>Previsualización de Portada</div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '300px' }}>
-                              {newPost.imageUrl}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>Resumen Corto (Excerpt)</label>
-                    <input
-                      type="text"
-                      placeholder="Breve introducción para tarjetas y feed..."
-                      className="input-field"
-                      value={newPost.excerpt}
-                      onChange={(e) => setNewPost({ ...newPost, excerpt: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Contenido Completo (Markdown / Texto) *</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          {contentWordCount} palabras • {contentCharCount} car.
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setIsFullscreenContent(true)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.4rem',
-                            background: 'rgba(212, 175, 55, 0.15)',
-                            border: '1px solid rgba(212, 175, 55, 0.4)',
-                            color: 'var(--accent-gold, #d4af37)',
-                            padding: '0.25rem 0.65rem',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                          }}
-                          title="Ampliar editor a pantalla completa para escribir y maquetar con comodidad"
-                        >
-                          <Maximize2 size={13} /> Ampliar a Pantalla Completa
-                        </button>
-                      </div>
-                    </div>
-
-                    <div style={{ position: 'relative' }}>
-                      <textarea
-                        required
-                        rows={7}
-                        placeholder="Escribe el cuerpo del artículo o utiliza Markdown (# Título, **negrita**, etc.)..."
-                        className="input-field"
-                        style={{ width: '100%', resize: 'vertical', minHeight: '160px', paddingBottom: '2rem' }}
-                        value={newPost.content}
-                        onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
-                      />
-
-                      {/* Floating bottom-right quick expand button */}
-                      <button
-                        type="button"
-                        onClick={() => setIsFullscreenContent(true)}
-                        style={{
-                          position: 'absolute',
-                          bottom: '10px',
-                          right: '10px',
-                          background: 'rgba(20, 22, 30, 0.85)',
-                          border: '1px solid rgba(212, 175, 55, 0.35)',
-                          color: '#fbbf24',
-                          padding: '0.3rem 0.6rem',
-                          borderRadius: '4px',
-                          fontSize: '0.72rem',
-                          fontWeight: 600,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          cursor: 'pointer',
-                          backdropFilter: 'blur(6px)',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-                        }}
-                        title="Ampliar a pantalla completa"
-                      >
-                        <Maximize2 size={12} /> Ampliar
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* FULLSCREEN EXPANDED TEXTAREA MODAL */}
-                  {isFullscreenContent && (
-                    <div
-                      style={{
-                        position: 'fixed',
-                        inset: 0,
-                        zIndex: 99999,
-                        background: '#0a0c14',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        overflow: 'hidden',
-                        color: '#f3f4f6',
-                        animation: 'fadeIn 0.2s ease-out',
-                      }}
-                    >
-                      {/* Top Header Bar */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '1rem',
-                          padding: '0.8rem 1.5rem',
-                          background: '#121520',
-                          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                        }}
-                      >
-                        {/* Title & Stats */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                          <div
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '8px',
-                              background: 'rgba(212, 175, 55, 0.2)',
-                              color: 'var(--accent-gold, #d4af37)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <Edit3 size={18} />
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <span>Editor de Contenido a Pantalla Completa</span>
-                              <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', fontWeight: 600 }}>
-                                Sincronización en Vivo
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                              <span style={{ color: '#fbbf24', fontWeight: 600 }}>{newPost.title ? `"${newPost.title.substring(0, 45)}..."` : 'Nuevo Artículo'}</span>
-                              <span>•</span>
-                              <span>{contentWordCount} palabras</span>
-                              <span>•</span>
-                              <span>{contentCharCount} caracteres</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Formatting Toolbar & View Mode Switcher */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
-                          {/* Markdown Quick Buttons */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'rgba(0,0,0,0.4)', padding: '0.25rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                            <button
-                              type="button"
-                              onClick={() => handleInsertMarkdown('\n## ', '\n')}
-                              style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', fontWeight: 700, borderRadius: '4px', background: 'transparent', color: '#e5e7eb', border: 'none', cursor: 'pointer' }}
-                              title="Insertar Encabezado H2"
-                            >
-                              H2
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleInsertMarkdown('\n### ', '\n')}
-                              style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', fontWeight: 700, borderRadius: '4px', background: 'transparent', color: '#e5e7eb', border: 'none', cursor: 'pointer' }}
-                              title="Insertar Encabezado H3"
-                            >
-                              H3
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleInsertMarkdown('**', '**')}
-                              style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', fontWeight: 700, borderRadius: '4px', background: 'transparent', color: '#e5e7eb', border: 'none', cursor: 'pointer' }}
-                              title="Texto en Negrita"
-                            >
-                              <strong>B</strong>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleInsertMarkdown('*', '*')}
-                              style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', fontStyle: 'italic', borderRadius: '4px', background: 'transparent', color: '#e5e7eb', border: 'none', cursor: 'pointer' }}
-                              title="Texto en Cursiva"
-                            >
-                              <em>I</em>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleInsertMarkdown('\n- ', '')}
-                              style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', borderRadius: '4px', background: 'transparent', color: '#e5e7eb', border: 'none', cursor: 'pointer' }}
-                              title="Lista con viñetas"
-                            >
-                              • Lista
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleInsertMarkdown('\n> ', '\n')}
-                              style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', borderRadius: '4px', background: 'transparent', color: '#e5e7eb', border: 'none', cursor: 'pointer' }}
-                              title="Bloque de Cita"
-                            >
-                              &ldquo; Cita
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleInsertMarkdown('\n```\n', '\n```\n')}
-                              style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', borderRadius: '4px', background: 'transparent', color: '#e5e7eb', border: 'none', cursor: 'pointer', fontFamily: 'monospace' }}
-                              title="Bloque de Código"
-                            >
-                              &lt;/&gt;
-                            </button>
-                          </div>
-
-                          {/* View Mode Toggle (Edit / Split / Preview) */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', background: 'rgba(0,0,0,0.5)', padding: '0.25rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                            <button
-                              type="button"
-                              onClick={() => setFullscreenViewMode('edit')}
-                              style={{
-                                padding: '0.35rem 0.65rem',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                borderRadius: '4px',
-                                background: fullscreenViewMode === 'edit' ? 'rgba(212, 175, 55, 0.25)' : 'transparent',
-                                color: fullscreenViewMode === 'edit' ? '#fbbf24' : '#9ca3af',
-                                border: 'none',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              Solo Editor
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setFullscreenViewMode('split')}
-                              style={{
-                                padding: '0.35rem 0.65rem',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                borderRadius: '4px',
-                                background: fullscreenViewMode === 'split' ? 'rgba(212, 175, 55, 0.25)' : 'transparent',
-                                color: fullscreenViewMode === 'split' ? '#fbbf24' : '#9ca3af',
-                                border: 'none',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              Vista Dividida
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setFullscreenViewMode('preview')}
-                              style={{
-                                padding: '0.35rem 0.65rem',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                borderRadius: '4px',
-                                background: fullscreenViewMode === 'preview' ? 'rgba(212, 175, 55, 0.25)' : 'transparent',
-                                color: fullscreenViewMode === 'preview' ? '#fbbf24' : '#9ca3af',
-                                border: 'none',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              Vista Previa
-                            </button>
-                          </div>
-
-                          {/* Prominent Shrink / Reduce Button */}
-                          <button
-                            type="button"
-                            onClick={() => setIsFullscreenContent(false)}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              background: 'linear-gradient(135deg, #d4af37, #b8860b)',
-                              color: '#000',
-                              border: 'none',
-                              padding: '0.45rem 1rem',
-                              borderRadius: '6px',
-                              fontSize: '0.85rem',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              boxShadow: '0 4px 12px rgba(212, 175, 55, 0.3)',
-                              transition: 'all 0.2s',
-                            }}
-                            title="Reducir y volver al formulario general (o presiona Esc)"
-                          >
-                            <Minimize2 size={16} /> Reducir / Salir (Esc)
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Main Fullscreen Body */}
-                      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
-                        {/* Editor Column */}
-                        {(fullscreenViewMode === 'edit' || fullscreenViewMode === 'split') && (
-                          <div
-                            style={{
-                              flex: fullscreenViewMode === 'split' ? '1 1 50%' : '1 1 100%',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              borderRight: fullscreenViewMode === 'split' ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                              background: '#0d0f18',
-                              padding: '1.5rem',
-                              overflowY: 'auto',
-                            }}
-                          >
-                            <textarea
-                              ref={fullscreenTextareaRef}
-                              placeholder="Escribe aquí el contenido completo del artículo con formato Markdown...&#10;&#10;Ejemplo:&#10;## Introducción&#10;Este es el cuerpo del artículo...&#10;&#10;• Punto clave 1&#10;• Punto clave 2"
-                              value={newPost.content}
-                              onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                minHeight: '450px',
-                                background: 'transparent',
-                                border: 'none',
-                                outline: 'none',
-                                color: '#f3f4f6',
-                                fontSize: '1.05rem',
-                                lineHeight: '1.75',
-                                fontFamily: 'ui-sans-serif, system-ui, -apple-system, sans-serif',
-                                resize: 'none',
-                              }}
-                            />
-                          </div>
-                        )}
-
-                        {/* Live Markdown Preview Column */}
-                        {(fullscreenViewMode === 'preview' || fullscreenViewMode === 'split') && (
-                          <div
-                            style={{
-                              flex: fullscreenViewMode === 'split' ? '1 1 50%' : '1 1 100%',
-                              padding: '2rem',
-                              background: '#080a10',
-                              overflowY: 'auto',
-                            }}
-                          >
-                            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-                              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent-gold, #d4af37)', marginBottom: '0.8rem', fontWeight: 700 }}>
-                                Previsualización de Lectura Maquetada (HTML / SEO)
-                              </div>
-                              {newPost.content ? (
-                                <ArticleRenderer content={newPost.content} showTableOfContents={true} allowCopyHtml={true} />
-                              ) : (
-                                <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: '2rem 0', textAlign: 'center' }}>
-                                  Escribe texto en el panel izquierdo para ver la previsualización maquetada en tiempo real.
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Bottom Footer Status Bar */}
-                      <div
-                        style={{
-                          padding: '0.6rem 1.5rem',
-                          background: '#0e111a',
-                          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          fontSize: '0.75rem',
-                          color: 'var(--text-muted)',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <span style={{ color: '#4ade80', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <Check size={14} /> Cambios guardados automáticamente en el borrador
-                          </span>
-                          <span>|</span>
-                          <span>Atajos: **negrita**, *cursiva*, ## Encabezado, &gt; Cita</span>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <button
-                            type="button"
-                            onClick={() => setIsFullscreenContent(false)}
-                            style={{
-                              background: 'transparent',
-                              border: '1px solid rgba(255,255,255,0.2)',
-                              color: '#d1d5db',
-                              padding: '0.25rem 0.75rem',
-                              borderRadius: '4px',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Volver al Formulario
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.3rem' }}>
-                    <input
-                      type="checkbox"
-                      id="exclusiveCheck"
-                      checked={newPost.isExclusive}
-                      onChange={(e) => setNewPost({ ...newPost, isExclusive: e.target.checked })}
-                    />
-                    <label htmlFor="exclusiveCheck" style={{ fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
-                      🔒 Marcar como Contenido Exclusivo para Miembros VIP
-                    </label>
-                  </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Buscar publicación..."
+                    value={postSearchQuery}
+                    onChange={(e) => setPostSearchQuery(e.target.value)}
+                    className="input-field text-xs py-2 pl-8 pr-3 bg-black/40 border-white/10 rounded-lg text-[#F1F5F9] w-48 sm:w-56"
+                  />
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/40" />
                 </div>
               </div>
-
-              {/* SECTION 2: TRADITIONAL SEO FOR SEARCH ENGINES (GOOGLE / BING) */}
-              <div style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: 'var(--radius-sm)', padding: '1.2rem' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#60a5fa', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Icons.Search size={16} /> 2. Optimización SEO (Buscadores Tradicionales)
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Meta Título SEO (Meta Title)</label>
-                      <span style={{ fontSize: '0.75rem', color: newPost.metaTitle.length > 60 ? '#f87171' : 'var(--text-muted)' }}>
-                        {newPost.metaTitle.length} / 60 car.
-                      </span>
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Título optimizado para fragmentos de Google (50-60 caracteres)"
-                      className="input-field"
-                      value={newPost.metaTitle}
-                      onChange={(e) => setNewPost({ ...newPost, metaTitle: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Meta Descripción SEO (Meta Description)</label>
-                      <span style={{ fontSize: '0.75rem', color: newPost.metaDescription.length > 160 ? '#f87171' : 'var(--text-muted)' }}>
-                        {newPost.metaDescription.length} / 160 car.
-                      </span>
-                    </div>
-                    <textarea
-                      rows={2}
-                      placeholder="Resumen atractivo con llamada a la acción para mostrarse en resultados de búsqueda (150-160 car.)"
-                      className="input-field"
-                      value={newPost.metaDescription}
-                      onChange={(e) => setNewPost({ ...newPost, metaDescription: e.target.value })}
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>Palabras Clave (Keywords)</label>
-                      <input
-                        type="text"
-                        placeholder="fotografía, lightroom, presets..."
-                        className="input-field"
-                        value={newPost.keywords}
-                        onChange={(e) => setNewPost({ ...newPost, keywords: e.target.value })}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>Tipo Schema.org (JSON-LD)</label>
-                      <select
-                        className="input-field"
-                        value={newPost.schemaType}
-                        onChange={(e) => setNewPost({ ...newPost, schemaType: e.target.value as any })}
-                      >
-                        <option value="BlogPosting">BlogPosting (Artículo Estándar)</option>
-                        <option value="TechArticle">TechArticle (Artículo Técnico/Tutorial)</option>
-                        <option value="HowTo">HowTo (Guía de Pasos)</option>
-                        <option value="Review">Review (Reseña / Análisis)</option>
-                        <option value="FAQPage">FAQPage (Página de Preguntas Frecuentes)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>URL Canónica (Canonical URL)</label>
-                    <input
-                      type="text"
-                      placeholder="https://lolaworkia.com/blog/..."
-                      className="input-field"
-                      value={newPost.canonicalUrl}
-                      onChange={(e) => setNewPost({ ...newPost, canonicalUrl: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 3: GEO / AI ENGINE OPTIMIZATION (CHATGPT, PERPLEXITY, GEMINI, AI OVERVIEWS) */}
-              <div style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(167, 139, 250, 0.4)', borderRadius: 'var(--radius-sm)', padding: '1.2rem' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#c084fc', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Icons.Sparkles size={16} /> 3. Optimización GEO (Motores de Inteligencia Artificial)
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>
-                      🤖 Resumen TL;DR / Sintético para IA (AI Grounding Summary)
-                    </label>
-                    <textarea
-                      rows={3}
-                      placeholder="Resumen denso y directo de 100-150 palabras para que ChatGPT, Perplexity y Gemini citen tu contenido con precisión..."
-                      className="input-field"
-                      value={newPost.aiSummary}
-                      onChange={(e) => setNewPost({ ...newPost, aiSummary: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>
-                      📌 Puntos Clave Extraíbles (Key Takeaways)
-                    </label>
-                    <textarea
-                      rows={3}
-                      placeholder="• Punto 1: Explicación clave...&#10;• Punto 2: Conclusión práctica..."
-                      className="input-field"
-                      value={newPost.keyTakeaways}
-                      onChange={(e) => setNewPost({ ...newPost, keyTakeaways: e.target.value })}
-                    />
-                  </div>
-
-                  {/* FAQ Builder for AI & Google AI Overviews */}
-                  <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem', marginTop: '0.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.8rem' }}>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
-                        ❓ Preguntas Frecuentes Estructuradas (FAQ Schema)
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleAddFaq}
-                        className="btn-secondary"
-                        style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
-                      >
-                        <Icons.Plus size={14} /> Añadir FAQ
-                      </button>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                      {faqList.map((faq, idx) => (
-                        <div key={idx} style={{ background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Pregunta #{idx + 1}</span>
-                            {faqList.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveFaq(idx)}
-                                style={{ color: '#f87171', border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.75rem' }}
-                              >
-                                Eliminar
-                              </button>
-                            )}
-                          </div>
-                          <input
-                            type="text"
-                            placeholder="¿Cuál es la pregunta clave?"
-                            className="input-field"
-                            style={{ marginBottom: '0.4rem', fontSize: '0.85rem' }}
-                            value={faq.question}
-                            onChange={(e) => handleFaqChange(idx, 'question', e.target.value)}
-                          />
-                          <input
-                            type="text"
-                            placeholder="Respuesta concisa y directa..."
-                            className="input-field"
-                            style={{ fontSize: '0.85rem' }}
-                            value={faq.answer}
-                            onChange={(e) => handleFaqChange(idx, 'answer', e.target.value)}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-              <button type="submit" className="btn-primary" style={{ padding: '0.9rem', fontSize: '1rem', fontWeight: 700 }}>
-                {editingPostId ? '💾 Guardar Cambios de la Publicación' : '🚀 Publicar Artículo Optimizado (SEO + IA)'}
-              </button>
-            </form>
+            )}
           </div>
 
-          {/* Right Column: Category Management & Current Posts List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            {/* Category Management Block */}
-            <div className="glass-panel" style={{ padding: '1.8rem' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                📁 Gestión de Categorías del Blog ({categories.length})
-              </h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                Añade o elimina categorías dinámicas. Se sincronizan en tiempo real con Firebase y el portal del blog.
-              </p>
+          {/* SUB-VIEW 1: LIST / CATALOG */}
+          {postsSubView === 'list' && (
+            <div className="flex flex-col gap-6">
+              {/* Category Management Bar */}
+              <div className="glass-panel p-5 rounded-xl border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-bold flex items-center gap-2 text-white">
+                    📁 Gestión de Categorías del Blog ({categories.length})
+                  </h3>
+                  <p className="text-xs text-[#94A3B8] mt-1">
+                    Añade o gestiona las etiquetas temáticas. Se sincronizan en tiempo real con el portal del blog.
+                  </p>
+                </div>
 
-              <form onSubmit={handleAddNewCategory} style={{ display: 'flex', gap: '0.6rem', marginBottom: '1.2rem' }}>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej. Inteligencia Artificial"
-                  className="input-field"
-                  style={{ fontSize: '0.85rem' }}
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                />
-                <button type="submit" className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-                  <Icons.Plus size={16} /> Añadir
-                </button>
-              </form>
+                <form onSubmit={handleAddNewCategory} className="flex items-center gap-2 w-full md:w-auto">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nueva categoría..."
+                    className="input-field text-xs py-2 px-3 bg-black/40 border-white/10 rounded-lg text-[#F1F5F9] w-full md:w-52"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                  />
+                  <button type="submit" className="btn-cyan text-xs py-2 px-3 shrink-0 flex items-center gap-1">
+                    <Icons.Plus size={14} /> Añadir
+                  </button>
+                </form>
+              </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '220px', overflowY: 'auto' }}>
+              {/* Category Badges Pills */}
+              <div className="flex flex-wrap items-center gap-2">
                 {categories.map((cat) => (
                   <div
                     key={cat}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0.6rem 0.8rem',
-                      background: 'rgba(0,0,0,0.3)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: 'var(--radius-sm)',
-                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-slate-200"
                   >
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{cat}</span>
+                    <span className="font-semibold">{cat}</span>
                     {categories.length > 1 && (
-                      <div>
-                        {deletingCategory === cat ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <button
-                              type="button"
-                              onClick={() => handleConfirmDeleteCategory(cat)}
-                              style={{
-                                color: '#fff',
-                                background: '#dc2626',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '0.25rem 0.55rem',
-                                cursor: 'pointer',
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                              }}
-                            >
-                              Confirmar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeletingCategory(null)}
-                              style={{
-                                color: 'var(--text-muted)',
-                                background: 'rgba(255,255,255,0.1)',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '0.25rem 0.4rem',
-                                cursor: 'pointer',
-                                fontSize: '0.75rem',
-                              }}
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ) : (
+                      deletingCategory === cat ? (
+                        <div className="flex items-center gap-1">
                           <button
                             type="button"
-                            onClick={() => setDeletingCategory(cat)}
-                            style={{ color: '#f87171', border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.75rem' }}
+                            onClick={() => handleConfirmDeleteCategory(cat)}
+                            className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded font-bold hover:bg-red-500"
                           >
-                            Eliminar
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Current Posts List */}
-            <div>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1.5rem' }}>Publicaciones Actuales ({blogPosts.length})</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {blogPosts.map((p) => {
-                const postIdOrSlug = p.id || p.slug;
-                const isConfirmingDelete = deletingPostId === postIdOrSlug;
-
-                return (
-                  <div key={postIdOrSlug} className="glass-panel" style={{ padding: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <img src={p.imageUrl} alt={p.title} style={{ width: '60px', height: '60px', borderRadius: 'var(--radius-sm)', objectFit: 'cover' }} />
-                      <div>
-                        <div style={{ fontSize: '0.95rem', fontWeight: 700 }}>{p.title}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          {p.category} • {p.date} {p.isExclusive && <span style={{ color: '#c084fc' }}>• VIP</span>}
-                        </div>
-                        {p.aiSummary && <div style={{ fontSize: '0.7rem', color: '#a78bfa', marginTop: '2px' }}>⚡ Optimizado para GEO IA</div>}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleEditClick(p)}
-                        className="btn-secondary"
-                        style={{
-                          padding: '0.4rem 0.7rem',
-                          fontSize: '0.8rem',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                          color: 'var(--accent-gold)',
-                          borderColor: 'var(--accent-gold)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <Icons.Edit size={16} /> Editar
-                      </button>
-
-                      {isConfirmingDelete ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <button
-                            type="button"
-                            onClick={() => handleConfirmDeletePost(p)}
-                            style={{
-                              background: '#dc2626',
-                              color: '#ffffff',
-                              padding: '0.4rem 0.75rem',
-                              borderRadius: 'var(--radius-sm)',
-                              border: 'none',
-                              fontWeight: 700,
-                              fontSize: '0.8rem',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.3rem',
-                              boxShadow: '0 2px 8px rgba(220, 38, 38, 0.4)',
-                            }}
-                          >
-                            <Icons.Trash size={14} /> Confirmar
+                            Confirmar
                           </button>
                           <button
                             type="button"
-                            onClick={() => setDeletingPostId(null)}
-                            style={{
-                              background: 'rgba(255, 255, 255, 0.1)',
-                              color: 'var(--text-muted)',
-                              padding: '0.4rem 0.6rem',
-                              borderRadius: 'var(--radius-sm)',
-                              border: '1px solid var(--border-subtle)',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer',
-                            }}
+                            onClick={() => setDeletingCategory(null)}
+                            className="text-[10px] text-slate-400 hover:text-white px-1"
                           >
-                            Cancelar
+                            ✕
                           </button>
                         </div>
                       ) : (
                         <button
                           type="button"
-                          onClick={() => setDeletingPostId(postIdOrSlug)}
+                          onClick={() => setDeletingCategory(cat)}
+                          className="text-red-400 hover:text-red-300 ml-1 text-xs"
+                          title={`Eliminar categoría ${cat}`}
+                        >
+                          ✕
+                        </button>
+                      )
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Grid of Posts */}
+              {filteredPosts.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredPosts.map((p) => {
+                    const postIdOrSlug = p.id || p.slug;
+                    const isConfirmingDelete = deletingPostId === postIdOrSlug;
+
+                    return (
+                      <div
+                        key={postIdOrSlug}
+                        className="glass-panel rounded-xl overflow-hidden border border-white/10 flex flex-col hover:border-[#06B6D4]/40 transition-all duration-300 group"
+                      >
+                        {/* Cover Image & Badges */}
+                        <div className="relative h-48 w-full overflow-hidden bg-black/40">
+                          <img
+                            src={p.imageUrl}
+                            alt={p.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#08090E] via-transparent to-black/30" />
+
+                          {/* Category Tag */}
+                          <div className="absolute top-3 left-3">
+                            <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-black/60 backdrop-blur-md border border-white/15 text-[#06B6D4]">
+                              {p.category}
+                            </span>
+                          </div>
+
+                          {/* VIP Tag */}
+                          {p.isExclusive && (
+                            <div className="absolute top-3 right-3">
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/80 backdrop-blur-md text-white border border-purple-400/40">
+                                🔒 VIP
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Date */}
+                          <div className="absolute bottom-2 left-3 text-[11px] text-slate-300 font-mono">
+                            {p.date}
+                          </div>
+                        </div>
+
+                        {/* Card Body */}
+                        <div className="p-5 flex-1 flex flex-col justify-between gap-4">
+                          <div>
+                            <h4 className="font-syne font-bold text-base text-white line-clamp-2 leading-snug mb-2 group-hover:text-[#06B6D4] transition-colors">
+                              {p.title}
+                            </h4>
+
+                            <p className="text-xs text-[#94A3B8] line-clamp-2 leading-relaxed">
+                              {p.excerpt || (p.content ? p.content.substring(0, 100) + '...' : '')}
+                            </p>
+                          </div>
+
+                          <div>
+                            {/* Badges metadata */}
+                            <div className="flex items-center gap-2 flex-wrap mb-4 pt-2 border-t border-white/5 text-[11px]">
+                              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">
+                                {p.schemaType || 'BlogPosting'}
+                              </span>
+
+                              {p.aiSummary && (
+                                <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                                  <Sparkles size={10} /> GEO IA
+                                </span>
+                              )}
+
+                              <span className="text-[11px] text-[#64748B] ml-auto">
+                                {p.readTime || '5 min'}
+                              </span>
+                            </div>
+
+                            {/* Card Footer Actions */}
+                            <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditClick(p)}
+                                  className="btn-cyan py-1.5 px-3 text-xs flex items-center gap-1.5"
+                                >
+                                  <Icons.Edit size={13} /> Editar
+                                </button>
+
+                                <Link
+                                  href={`/blog/${p.slug}`}
+                                  target="_blank"
+                                  className="px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 text-xs text-[#94A3B8] hover:text-white transition-colors flex items-center gap-1"
+                                >
+                                  <ExternalLink size={13} /> Ver
+                                </Link>
+                              </div>
+
+                              {isConfirmingDelete ? (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleConfirmDeletePost(p)}
+                                    className="bg-red-600 hover:bg-red-500 text-white px-2 py-1 rounded text-xs font-bold transition-colors"
+                                  >
+                                    Confirmar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeletingPostId(null)}
+                                    className="text-xs text-slate-400 hover:text-white px-1.5 py-1"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setDeletingPostId(postIdOrSlug)}
+                                  className="text-red-400 hover:text-red-300 p-1.5 rounded-md hover:bg-red-500/10 transition-colors"
+                                  title="Eliminar publicación"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="glass-panel p-12 rounded-xl text-center flex flex-col items-center justify-center gap-3 border border-white/10">
+                  <Icons.FileText size={36} className="text-[#64748B] opacity-50" />
+                  <p className="text-sm font-semibold text-white">No se encontraron publicaciones</p>
+                  <p className="text-xs text-[#94A3B8]">
+                    No hay publicaciones que coincidan con la búsqueda &quot;{postSearchQuery}&quot; o el filtro de categoría seleccionado.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPostSearchQuery('');
+                      setSelectedPostCategory('All');
+                    }}
+                    className="btn-secondary text-xs mt-2"
+                  >
+                    Restablecer Filtros
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* SUB-VIEW 2: EDITOR */}
+          {postsSubView === 'editor' && (
+            <div className="max-w-4xl mx-auto w-full flex flex-col gap-6">
+              {/* Editor Header Navigation */}
+              <div className="flex items-center justify-between gap-4 p-4 rounded-xl glass-panel border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setPostsSubView('list')}
+                  className="btn-secondary text-xs flex items-center gap-2 hover:border-[#06B6D4]"
+                >
+                  <ArrowLeft size={14} /> Volver al Catálogo de Artículos
+                </button>
+
+                <div className="flex items-center gap-3">
+                  {editingPostId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetPostForm();
+                        setPostsSubView('list');
+                      }}
+                      className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 px-3 py-1.5 rounded-md border border-red-500/20 hover:bg-red-500/10"
+                    >
+                      <Icons.X size={14} /> Cancelar Edición
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Full Width Post Form */}
+              <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-white/10">
+                <div className="border-b border-white/10 pb-5 mb-6">
+                  <h3 className="text-xl font-bold font-syne text-white flex items-center gap-2">
+                    {editingPostId ? (
+                      <>
+                        <Icons.Edit size={22} className="text-amber-400" /> Modificar Publicación Existente
+                      </>
+                    ) : (
+                      <>
+                        <Icons.Sparkles size={22} className="text-[#06B6D4]" /> Crear Publicación Optimizada (SEO &amp; GEO IA)
+                      </>
+                    )}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-[#94A3B8] mt-1.5 leading-relaxed">
+                    {editingPostId
+                      ? 'Actualiza los campos de contenido, posicionamiento web y marcado estructurado. Los cambios se sincronizarán al guardar.'
+                      : 'Rellena los bloques de contenido, posicionamiento para Google y optimización semántica para modelos de lenguaje (ChatGPT, Perplexity, Gemini).'}
+                  </p>
+                </div>
+
+                <form onSubmit={handleCreatePost} className="flex flex-col gap-8">
+                  {/* SECTION 1: MAIN CONTENT */}
+                  <div className="p-5 rounded-xl border border-white/10 bg-black/20 flex flex-col gap-5">
+                    <div className="text-xs font-bold uppercase tracking-wider text-[#06B6D4] flex items-center gap-2">
+                      📌 1. Contenido General del Artículo
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold mb-1 text-slate-200">
+                          Título Principal (H1) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ej. Guía Completa de Fotografía y Edición para 2026"
+                          className="input-field text-sm"
+                          value={newPost.title}
+                          onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-slate-200">
+                            Slug Permalink (URL)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="guia-fotografia-2026"
+                            className="input-field text-sm font-mono"
+                            value={newPost.slug}
+                            onChange={(e) => setNewPost({ ...newPost, slug: e.target.value })}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-slate-200">
+                            Categoría
+                          </label>
+                          <select
+                            className="input-field text-sm cursor-pointer"
+                            value={newPost.category}
+                            onChange={(e) => setNewPost({ ...newPost, category: e.target.value })}
+                          >
+                            {categories.map((cat) => (
+                              <option key={cat} value={cat}>
+                                {cat}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Image Upload Box */}
+                      <div className="p-4 rounded-xl border border-white/10 bg-black/30 flex flex-col gap-3">
+                        <label className="block text-xs font-bold text-[#06B6D4]">
+                          📸 Imagen de Portada (Firebase Storage / Archivo Local)
+                        </label>
+
+                        <div className="flex gap-3 items-center flex-wrap">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            id="blogCoverFileInput"
+                            style={{ display: 'none' }}
+                            onChange={handleImageFileUpload}
+                          />
+                          <label
+                            htmlFor="blogCoverFileInput"
+                            className="btn-secondary py-2 px-4 text-xs cursor-pointer inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white border-white/20"
+                          >
+                            <Icons.Camera size={15} /> Seleccionar Imagen de tu Equipo
+                          </label>
+
+                          {isUploadingImage && (
+                            <span className="text-xs text-[#06B6D4] font-semibold animate-pulse">
+                              ⚡ Subiendo a Firebase Storage...
+                            </span>
+                          )}
+                        </div>
+
+                        {uploadImageStatus && (
+                          <div
+                            className={`text-xs font-semibold ${
+                              uploadImageStatus.isError ? 'text-red-400' : 'text-emerald-400'
+                            }`}
+                          >
+                            {uploadImageStatus.message}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] text-[#94A3B8] mb-1">URL Final de la Portada *</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="https://images.unsplash.com/..."
+                              className="input-field text-xs font-mono"
+                              value={newPost.imageUrl}
+                              onChange={(e) => setNewPost({ ...newPost, imageUrl: e.target.value })}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] text-[#94A3B8] mb-1">Texto Alt de Imagen (SEO Visual)</label>
+                            <input
+                              type="text"
+                              placeholder="Ej. Cámara vintage sobre fondo de madera..."
+                              className="input-field text-xs"
+                              value={newPost.imageAlt}
+                              onChange={(e) => setNewPost({ ...newPost, imageAlt: e.target.value })}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Image Thumbnail Preview */}
+                        {newPost.imageUrl && (
+                          <div className="flex items-center gap-3 p-2 rounded-lg bg-black/40 border border-white/5">
+                            <img
+                              src={newPost.imageUrl}
+                              alt="Previsualización"
+                              className="w-20 h-14 object-cover rounded-md border border-white/10 shrink-0"
+                            />
+                            <div className="overflow-hidden">
+                              <div className="text-xs font-bold text-white">Previsualización de Portada</div>
+                              <div className="text-[11px] text-[#94A3B8] truncate max-w-md">
+                                {newPost.imageUrl}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold mb-1 text-slate-200">
+                          Resumen Corto (Excerpt)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Breve introducción para tarjetas y feed..."
+                          className="input-field text-sm"
+                          value={newPost.excerpt}
+                          onChange={(e) => setNewPost({ ...newPost, excerpt: e.target.value })}
+                        />
+                      </div>
+
+                      {/* Content editor textarea */}
+                      <div>
+                        <div className="flex justify-between items-center mb-1.5 flex-wrap gap-2">
+                          <label className="text-xs font-semibold text-slate-200">
+                            Contenido Completo (Markdown / Texto) *
+                          </label>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-[#94A3B8]">
+                              {contentWordCount} palabras • {contentCharCount} car.
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setIsFullscreenContent(true)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#06B6D4]/10 border border-[#06B6D4]/30 text-[#06B6D4] text-xs font-bold hover:bg-[#06B6D4]/20 transition-colors"
+                              title="Ampliar editor a pantalla completa"
+                            >
+                              <Maximize2 size={13} /> Pantalla Completa
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="relative">
+                          <textarea
+                            required
+                            rows={8}
+                            placeholder="Escribe el cuerpo del artículo con Markdown (# Título, **negrita**, listas, etc.)..."
+                            className="input-field text-sm font-sans w-full min-h-[180px] pb-10"
+                            value={newPost.content}
+                            onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() => setIsFullscreenContent(true)}
+                            className="absolute bottom-3 right-3 bg-black/70 hover:bg-black border border-white/20 text-[#06B6D4] px-2.5 py-1 rounded text-xs font-medium flex items-center gap-1.5 backdrop-blur-md transition-colors"
+                            title="Ampliar a pantalla completa"
+                          >
+                            <Maximize2 size={12} /> Ampliar
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* FULLSCREEN EXPANDED TEXTAREA MODAL */}
+                      {isFullscreenContent && (
+                        <div
                           style={{
-                            color: '#f87171',
-                            padding: '0.4rem 0.6rem',
-                            borderRadius: 'var(--radius-sm)',
-                            border: '1px solid rgba(239,68,68,0.3)',
-                            background: 'none',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            fontSize: '0.8rem',
+                            position: 'fixed',
+                            inset: 0,
+                            zIndex: 99999,
+                            background: '#0a0c14',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'hidden',
+                            color: '#f3f4f6',
+                            animation: 'fadeIn 0.2s ease-out',
                           }}
                         >
-                          <Icons.Trash size={16} /> Borrar
-                        </button>
+                          {/* Top Header Bar */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '1rem',
+                              padding: '0.8rem 1.5rem',
+                              background: '#121520',
+                              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                            }}
+                          >
+                            {/* Title & Stats */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                              <div
+                                style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '8px',
+                                  background: 'rgba(6, 182, 212, 0.2)',
+                                  color: '#06B6D4',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <Edit3 size={18} />
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span>Editor de Contenido a Pantalla Completa</span>
+                                  <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', fontWeight: 600 }}>
+                                    Sincronización en Vivo
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                  <span style={{ color: '#06B6D4', fontWeight: 600 }}>{newPost.title ? `"${newPost.title.substring(0, 45)}..."` : 'Nuevo Artículo'}</span>
+                                  <span>•</span>
+                                  <span>{contentWordCount} palabras</span>
+                                  <span>•</span>
+                                  <span>{contentCharCount} caracteres</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Formatting Toolbar & View Mode Switcher */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
+                              {/* Markdown Quick Buttons */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'rgba(0,0,0,0.4)', padding: '0.25rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleInsertMarkdown('\n## ', '\n')}
+                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', fontWeight: 700, borderRadius: '4px', background: 'transparent', color: '#e5e7eb', border: 'none', cursor: 'pointer' }}
+                                  title="Insertar Encabezado H2"
+                                >
+                                  H2
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleInsertMarkdown('\n### ', '\n')}
+                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', fontWeight: 700, borderRadius: '4px', background: 'transparent', color: '#e5e7eb', border: 'none', cursor: 'pointer' }}
+                                  title="Insertar Encabezado H3"
+                                >
+                                  H3
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleInsertMarkdown('**', '**')}
+                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', fontWeight: 700, borderRadius: '4px', background: 'transparent', color: '#e5e7eb', border: 'none', cursor: 'pointer' }}
+                                  title="Texto en Negrita"
+                                >
+                                  <strong>B</strong>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleInsertMarkdown('*', '*')}
+                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', fontStyle: 'italic', borderRadius: '4px', background: 'transparent', color: '#e5e7eb', border: 'none', cursor: 'pointer' }}
+                                  title="Texto en Cursiva"
+                                >
+                                  <em>I</em>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleInsertMarkdown('\n- ', '')}
+                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', borderRadius: '4px', background: 'transparent', color: '#e5e7eb', border: 'none', cursor: 'pointer' }}
+                                  title="Lista con viñetas"
+                                >
+                                  • Lista
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleInsertMarkdown('\n> ', '\n')}
+                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', borderRadius: '4px', background: 'transparent', color: '#e5e7eb', border: 'none', cursor: 'pointer' }}
+                                  title="Bloque de Cita"
+                                >
+                                  &ldquo; Cita
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleInsertMarkdown('\n```\n', '\n```\n')}
+                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', borderRadius: '4px', background: 'transparent', color: '#e5e7eb', border: 'none', cursor: 'pointer', fontFamily: 'monospace' }}
+                                  title="Bloque de Código"
+                                >
+                                  &lt;/&gt;
+                                </button>
+                              </div>
+
+                              {/* View Mode Toggle (Edit / Split / Preview) */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', background: 'rgba(0,0,0,0.5)', padding: '0.25rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setFullscreenViewMode('edit')}
+                                  style={{
+                                    padding: '0.35rem 0.65rem',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    borderRadius: '4px',
+                                    background: fullscreenViewMode === 'edit' ? 'rgba(6, 182, 212, 0.25)' : 'transparent',
+                                    color: fullscreenViewMode === 'edit' ? '#06B6D4' : '#9ca3af',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  Solo Editor
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setFullscreenViewMode('split')}
+                                  style={{
+                                    padding: '0.35rem 0.65rem',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    borderRadius: '4px',
+                                    background: fullscreenViewMode === 'split' ? 'rgba(6, 182, 212, 0.25)' : 'transparent',
+                                    color: fullscreenViewMode === 'split' ? '#06B6D4' : '#9ca3af',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  Vista Dividida
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setFullscreenViewMode('preview')}
+                                  style={{
+                                    padding: '0.35rem 0.65rem',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    borderRadius: '4px',
+                                    background: fullscreenViewMode === 'preview' ? 'rgba(6, 182, 212, 0.25)' : 'transparent',
+                                    color: fullscreenViewMode === 'preview' ? '#06B6D4' : '#9ca3af',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  Vista Previa
+                                </button>
+                              </div>
+
+                              {/* Prominent Shrink / Reduce Button */}
+                              <button
+                                type="button"
+                                onClick={() => setIsFullscreenContent(false)}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  background: 'linear-gradient(135deg, #06B6D4, #3B82F6)',
+                                  color: '#000',
+                                  border: 'none',
+                                  padding: '0.45rem 1rem',
+                                  borderRadius: '6px',
+                                  fontSize: '0.85rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)',
+                                  transition: 'all 0.2s',
+                                }}
+                                title="Reducir y volver al formulario general (o presiona Esc)"
+                              >
+                                <Minimize2 size={16} /> Reducir / Salir (Esc)
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Main Fullscreen Body */}
+                          <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+                            {/* Editor Column */}
+                            {(fullscreenViewMode === 'edit' || fullscreenViewMode === 'split') && (
+                              <div
+                                style={{
+                                  flex: fullscreenViewMode === 'split' ? '1 1 50%' : '1 1 100%',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  borderRight: fullscreenViewMode === 'split' ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                                  background: '#0d0f18',
+                                  padding: '1.5rem',
+                                  overflowY: 'auto',
+                                }}
+                              >
+                                <textarea
+                                  ref={fullscreenTextareaRef}
+                                  placeholder="Escribe aquí el contenido completo del artículo con formato Markdown...&#10;&#10;Ejemplo:&#10;## Introducción&#10;Este es el cuerpo del artículo...&#10;&#10;• Punto clave 1&#10;• Punto clave 2"
+                                  value={newPost.content}
+                                  onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
+                                  style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    minHeight: '450px',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    outline: 'none',
+                                    color: '#f3f4f6',
+                                    fontSize: '1.05rem',
+                                    lineHeight: '1.75',
+                                    fontFamily: 'ui-sans-serif, system-ui, -apple-system, sans-serif',
+                                    resize: 'none',
+                                  }}
+                                />
+                              </div>
+                            )}
+
+                            {/* Live Markdown Preview Column */}
+                            {(fullscreenViewMode === 'preview' || fullscreenViewMode === 'split') && (
+                              <div
+                                style={{
+                                  flex: fullscreenViewMode === 'split' ? '1 1 50%' : '1 1 100%',
+                                  padding: '2rem',
+                                  background: '#080a10',
+                                  overflowY: 'auto',
+                                }}
+                              >
+                                <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+                                  <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#06B6D4', marginBottom: '0.8rem', fontWeight: 700 }}>
+                                    Previsualización de Lectura Maquetada (HTML / SEO)
+                                  </div>
+                                  {newPost.content ? (
+                                    <ArticleRenderer content={newPost.content} showTableOfContents={true} allowCopyHtml={true} />
+                                  ) : (
+                                    <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: '2rem 0', textAlign: 'center' }}>
+                                      Escribe texto en el panel izquierdo para ver la previsualización maquetada en tiempo real.
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Bottom Fullscreen Status Bar */}
+                          <div
+                            style={{
+                              padding: '0.6rem 1.5rem',
+                              background: '#121520',
+                              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              fontSize: '0.75rem',
+                              color: 'var(--text-muted)',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                              <span style={{ color: '#4ade80', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                <Check size={14} /> Cambios sincronizados en el borrador
+                              </span>
+                              <span>|</span>
+                              <span>Atajos: **negrita**, *cursiva*, ## Encabezado, &gt; Cita</span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <button
+                                type="button"
+                                onClick={() => setIsFullscreenContent(false)}
+                                style={{
+                                  background: 'transparent',
+                                  border: '1px solid rgba(255,255,255,0.2)',
+                                  color: '#d1d5db',
+                                  padding: '0.25rem 0.75rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Volver al Formulario
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       )}
+
+                      <div className="flex items-center gap-3 pt-2">
+                        <input
+                          type="checkbox"
+                          id="exclusiveCheck"
+                          checked={newPost.isExclusive}
+                          onChange={(e) => setNewPost({ ...newPost, isExclusive: e.target.checked })}
+                          className="rounded border-white/20 text-[#06B6D4] focus:ring-0"
+                        />
+                        <label htmlFor="exclusiveCheck" className="text-xs font-semibold cursor-pointer text-slate-200">
+                          🔒 Marcar como Contenido Exclusivo para Miembros VIP
+                        </label>
+                      </div>
                     </div>
                   </div>
-                );
-              })}
+
+                  {/* SECTION 2: TRADITIONAL SEO FOR SEARCH ENGINES (GOOGLE / BING) */}
+                  <div className="p-5 rounded-xl border border-blue-500/30 bg-blue-950/10 flex flex-col gap-4">
+                    <div className="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-2">
+                      <Search size={15} /> 2. Optimización SEO (Buscadores Tradicionales - Google / Bing)
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-xs font-semibold text-slate-200">Meta Título SEO (Meta Title)</label>
+                          <span className={`text-[11px] font-mono ${newPost.metaTitle.length > 60 ? 'text-red-400 font-bold' : 'text-[#94A3B8]'}`}>
+                            {newPost.metaTitle.length} / 60 car.
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Título optimizado para fragmentos de Google (50-60 caracteres)"
+                          className="input-field text-sm"
+                          value={newPost.metaTitle}
+                          onChange={(e) => setNewPost({ ...newPost, metaTitle: e.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-xs font-semibold text-slate-200">Meta Descripción SEO (Meta Description)</label>
+                          <span className={`text-[11px] font-mono ${newPost.metaDescription.length > 160 ? 'text-red-400 font-bold' : 'text-[#94A3B8]'}`}>
+                            {newPost.metaDescription.length} / 160 car.
+                          </span>
+                        </div>
+                        <textarea
+                          rows={2}
+                          placeholder="Resumen atractivo con llamada a la acción para mostrarse en resultados de búsqueda (150-160 car.)"
+                          className="input-field text-sm"
+                          value={newPost.metaDescription}
+                          onChange={(e) => setNewPost({ ...newPost, metaDescription: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-slate-200">Palabras Clave (Keywords)</label>
+                          <input
+                            type="text"
+                            placeholder="fotografía, lightroom, presets..."
+                            className="input-field text-sm"
+                            value={newPost.keywords}
+                            onChange={(e) => setNewPost({ ...newPost, keywords: e.target.value })}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-slate-200">Tipo Schema.org (JSON-LD)</label>
+                          <select
+                            className="input-field text-sm cursor-pointer"
+                            value={newPost.schemaType}
+                            onChange={(e) => setNewPost({ ...newPost, schemaType: e.target.value as any })}
+                          >
+                            <option value="BlogPosting">BlogPosting (Artículo Estándar)</option>
+                            <option value="TechArticle">TechArticle (Artículo Técnico/Tutorial)</option>
+                            <option value="HowTo">HowTo (Guía Paso a Paso)</option>
+                            <option value="Review">Review (Reseña / Análisis)</option>
+                            <option value="FAQPage">FAQPage (Página de Preguntas Frecuentes)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold mb-1 text-slate-200">URL Canónica (Canonical URL)</label>
+                        <input
+                          type="text"
+                          placeholder="https://lolaworkia.com/blog/..."
+                          className="input-field text-sm font-mono"
+                          value={newPost.canonicalUrl}
+                          onChange={(e) => setNewPost({ ...newPost, canonicalUrl: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SECTION 3: GEO / AI ENGINE OPTIMIZATION (CHATGPT, PERPLEXITY, GEMINI) */}
+                  <div className="p-5 rounded-xl border border-purple-500/30 bg-purple-950/10 flex flex-col gap-4">
+                    <div className="text-xs font-bold uppercase tracking-wider text-purple-300 flex items-center gap-2">
+                      <Sparkles size={15} /> 3. Optimización GEO (Motores de Inteligencia Artificial &amp; Respuestas Semánticas)
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold mb-1 text-slate-200">
+                          🤖 Resumen TL;DR / Sintético para IA (AI Grounding Summary)
+                        </label>
+                        <textarea
+                          rows={3}
+                          placeholder="Resumen denso y directo de 100-150 palabras para que ChatGPT, Perplexity y Gemini citen tu contenido con precisión..."
+                          className="input-field text-sm"
+                          value={newPost.aiSummary}
+                          onChange={(e) => setNewPost({ ...newPost, aiSummary: e.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold mb-1 text-slate-200">
+                          📌 Puntos Clave Extraíbles (Key Takeaways)
+                        </label>
+                        <textarea
+                          rows={3}
+                          placeholder="• Punto 1: Explicación clave...&#10;• Punto 2: Conclusión práctica..."
+                          className="input-field text-sm"
+                          value={newPost.keyTakeaways}
+                          onChange={(e) => setNewPost({ ...newPost, keyTakeaways: e.target.value })}
+                        />
+                      </div>
+
+                      {/* FAQ Builder for AI & Google AI Overviews */}
+                      <div className="border-t border-purple-500/20 pt-4 mt-2">
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                            ❓ Preguntas Frecuentes Estructuradas (FAQ Schema)
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleAddFaq}
+                            className="btn-secondary py-1 px-3 text-xs flex items-center gap-1"
+                          >
+                            <Icons.Plus size={13} /> Añadir FAQ
+                          </button>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                          {faqList.map((faq, idx) => (
+                            <div key={idx} className="p-3.5 rounded-lg bg-black/40 border border-white/10 flex flex-col gap-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[11px] font-bold text-slate-400">Pregunta #{idx + 1}</span>
+                                {faqList.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveFaq(idx)}
+                                    className="text-red-400 hover:text-red-300 text-xs"
+                                  >
+                                    Eliminar
+                                  </button>
+                                )}
+                              </div>
+                              <input
+                                type="text"
+                                placeholder="¿Cuál es la pregunta clave?"
+                                className="input-field text-xs mb-1"
+                                value={faq.question}
+                                onChange={(e) => handleFaqChange(idx, 'question', e.target.value)}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Respuesta concisa y directa..."
+                                className="input-field text-xs"
+                                value={faq.answer}
+                                onChange={(e) => handleFaqChange(idx, 'answer', e.target.value)}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions Bar */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setPostsSubView('list')}
+                      className="btn-secondary w-full sm:w-auto text-xs py-2.5 px-5 flex items-center justify-center gap-2"
+                    >
+                      <ArrowLeft size={14} /> Volver al Catálogo
+                    </button>
+
+                    <button
+                      type="submit"
+                      className="btn-cyan w-full sm:w-auto text-sm py-3 px-8 font-bold flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+                    >
+                      {editingPostId ? '💾 Guardar Cambios de la Publicación' : '🚀 Publicar Artículo Optimizado (SEO + IA)'}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
-          </div>
+          )}
         </div>
-      </div>
-    )}
+      )}
 
       {/* TAB 2: GALLERY MANAGEMENT */}
       {activeTab === 'gallery' && (
