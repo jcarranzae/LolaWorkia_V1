@@ -1,0 +1,11 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      // Lectura pública de imágenes de blog, galería y texturas 3D
+      allow read: if true;
+      // Escritura para subir imágenes y texturas (ajustar en producción si se requiere autenticación)
+      allow write: if true;
+    }
+  }
+}

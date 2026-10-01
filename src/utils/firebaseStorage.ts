@@ -34,6 +34,9 @@ export async function getStorageImageUrl(
       cache.set(path, url);
       return url;
     } catch (err: any) {
+      if (err?.code === 'storage/unauthorized') {
+        return fallbackUrl;
+      }
       console.warn(`[FirebaseStorage] direct lookup for '${path}' failed:`, err?.code || err?.message);
     }
   }
@@ -61,8 +64,10 @@ export async function getStorageImageUrl(
         }
       }
     }
-  } catch (listErr) {
-    console.warn('[FirebaseStorage] Error listing storage items:', listErr);
+  } catch (listErr: any) {
+    if (listErr?.code !== 'storage/unauthorized') {
+      console.warn('[FirebaseStorage] Error listing storage items:', listErr);
+    }
   }
 
   return fallbackUrl;
