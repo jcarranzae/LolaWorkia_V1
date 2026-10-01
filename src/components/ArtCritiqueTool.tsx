@@ -21,9 +21,10 @@ interface CritiqueDoc {
 interface ArtCritiqueToolProps {
   user: User;
   initialTab?: "critique" | "research" | "exhibitions";
+  hideNavigationTabs?: boolean;
 }
 
-export default function ArtCritiqueTool({ user, initialTab = "critique" }: ArtCritiqueToolProps) {
+export default function ArtCritiqueTool({ user, initialTab = "critique", hideNavigationTabs = false }: ArtCritiqueToolProps) {
   const [critiques, setCritiques] = useState<CritiqueDoc[]>([]);
   const [activeTab, setActiveTab] = useState<"critique" | "research" | "exhibitions">(initialTab);
 
@@ -370,41 +371,43 @@ export default function ArtCritiqueTool({ user, initialTab = "critique" }: ArtCr
   return (
     <div className="flex flex-col gap-6 px-[15px]">
       {/* Context Subtabs Navigation conforming to HTML design */}
-      <div className="flex gap-8 border-b border-white/10 pb-1 font-mono text-xs uppercase tracking-wider text-[#94A3B8] overflow-x-auto custom-scrollbar px-[15px]">
-        <button
-          type="button"
-          onClick={() => setActiveTab("critique")}
-          className={`pb-3 transition-colors ${
-            activeTab === "critique"
-              ? "text-[#06B6D4] border-b-2 border-[#06B6D4] font-bold"
-              : "hover:text-white"
-          }`}
-        >
-          CRÍTICA DE OBRAS
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("research")}
-          className={`pb-3 transition-colors ${
-            activeTab === "research"
-              ? "text-[#06B6D4] border-b-2 border-[#06B6D4] font-bold"
-              : "hover:text-white"
-          }`}
-        >
-          INVESTIGACIÓN DE ARTISTA
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("exhibitions")}
-          className={`pb-3 transition-colors ${
-            activeTab === "exhibitions"
-              ? "text-[#06B6D4] border-b-2 border-[#06B6D4] font-bold"
-              : "hover:text-white"
-          }`}
-        >
-          GESTIÓN DE EXPOSICIONES
-        </button>
-      </div>
+      {!hideNavigationTabs && (
+        <div className="flex gap-8 border-b border-white/10 pb-1 font-mono text-xs uppercase tracking-wider text-[#94A3B8] overflow-x-auto custom-scrollbar px-[15px]">
+          <button
+            type="button"
+            onClick={() => setActiveTab("critique")}
+            className={`pb-3 transition-colors ${
+              activeTab === "critique"
+                ? "text-[#06B6D4] border-b-2 border-[#06B6D4] font-bold"
+                : "hover:text-white"
+            }`}
+          >
+            CRÍTICA DE OBRAS
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("research")}
+            className={`pb-3 transition-colors ${
+              activeTab === "research"
+                ? "text-[#06B6D4] border-b-2 border-[#06B6D4] font-bold"
+                : "hover:text-white"
+            }`}
+          >
+            INVESTIGACIÓN DE ARTISTA
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("exhibitions")}
+            className={`pb-3 transition-colors ${
+              activeTab === "exhibitions"
+                ? "text-[#06B6D4] border-b-2 border-[#06B6D4] font-bold"
+                : "hover:text-white"
+            }`}
+          >
+            GESTIÓN DE EXPOSICIONES
+          </button>
+        </div>
+      )}
 
       {/* Tab 1: CRÍTICA DE OBRAS */}
       {activeTab === "critique" && (

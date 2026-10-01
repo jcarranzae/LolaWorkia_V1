@@ -44,8 +44,10 @@ interface AuthContextType {
   updateBlogPost: (id: string, updatedFields: Partial<BlogPost>) => Promise<void>;
   deleteBlogPost: (id: string) => Promise<void>;
   addGalleryItem: (item: Omit<GalleryItem, 'id' | 'likes'>) => Promise<void>;
+  updateGalleryItem: (id: string, updatedFields: Partial<GalleryItem>) => Promise<void>;
   deleteGalleryItem: (id: string) => Promise<void>;
   addGallery3DArtwork: (artwork: Omit<Gallery3DArtwork, 'id'>) => Promise<void>;
+  updateGallery3DArtwork: (id: string, updatedFields: Partial<Gallery3DArtwork>) => Promise<void>;
   deleteGallery3DArtwork: (id: string) => Promise<void>;
   updateUserRole: (userId: string, newRole: UserRole) => Promise<void>;
   addCategory: (name: string) => Promise<{ success: boolean; message?: string }>;
@@ -542,6 +544,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     saveState(user, undefined, undefined, updated);
   };
 
+  const updateGalleryItem = async (id: string, updatedFields: Partial<GalleryItem>) => {
+    try {
+      await setDoc(doc(db, 'gallery', id), updatedFields, { merge: true });
+      setIsFirebaseActive(true);
+    } catch (e) {
+      console.log('Firestore setDoc update gallery fallback:', e);
+    }
+
+    const updated = galleryItems.map((item) => (item.id === id ? { ...item, ...updatedFields } : item));
+    saveState(user, undefined, undefined, updated);
+  };
+
   const deleteGalleryItem = async (id: string) => {
     if (!id) return;
 
@@ -583,6 +597,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const updated = [newItem, ...gallery3dArtworks];
+    saveState(user, undefined, undefined, undefined, updated);
+  };
+
+  const updateGallery3DArtwork = async (id: string, updatedFields: Partial<Gallery3DArtwork>) => {
+    try {
+      await setDoc(doc(db, 'gallery3d', id), updatedFields, { merge: true });
+      setIsFirebaseActive(true);
+    } catch (e) {
+      console.log('Firestore setDoc update gallery3d fallback:', e);
+    }
+
+    const updated = gallery3dArtworks.map((item) => (item.id === id ? { ...item, ...updatedFields } : item));
     saveState(user, undefined, undefined, undefined, updated);
   };
 
@@ -680,8 +706,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateBlogPost,
         deleteBlogPost,
         addGalleryItem,
+        updateGalleryItem,
         deleteGalleryItem,
         addGallery3DArtwork,
+        updateGallery3DArtwork,
         deleteGallery3DArtwork,
         updateUserRole,
         addCategory,

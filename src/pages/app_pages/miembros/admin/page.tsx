@@ -11,6 +11,7 @@ import { DEFAULT_VIRTUAL_ROOMS } from '@/data/mockGallery3D';
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import ArtCritiqueTool from '@/components/ArtCritiqueTool';
+import ResearchAtelier from '@/components/ResearchAtelier';
 import ArticleRenderer from '@/components/ArticleRenderer';
 import { 
   Brush, 
@@ -32,6 +33,7 @@ import {
   Maximize2,
   Minimize2,
   Columns,
+  Edit,
   Edit3,
   Bold,
   Italic,
@@ -41,7 +43,11 @@ import {
   Quote,
   Code,
   Type,
-  ArrowLeft
+  ArrowLeft,
+  Filter,
+  Image as ImageIcon,
+  MapPin,
+  Camera
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -57,8 +63,10 @@ export default function AdminDashboardPage() {
     updateBlogPost,
     deleteBlogPost,
     addGalleryItem,
+    updateGalleryItem,
     deleteGalleryItem,
     addGallery3DArtwork,
+    updateGallery3DArtwork,
     deleteGallery3DArtwork,
     updateUserRole,
     addCategory,
@@ -67,7 +75,9 @@ export default function AdminDashboardPage() {
 
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+  const [editingGalleryId, setEditingGalleryId] = useState<string | null>(null);
   const [deletingGalleryId, setDeletingGalleryId] = useState<string | null>(null);
+  const [editing3DArtworkId, setEditing3DArtworkId] = useState<string | null>(null);
   const [deleting3DArtworkId, setDeleting3DArtworkId] = useState<string | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -82,6 +92,17 @@ export default function AdminDashboardPage() {
   const [postSearchQuery, setPostSearchQuery] = useState('');
   const [selectedPostCategory, setSelectedPostCategory] = useState('All');
 
+  const [gallerySubView, setGallerySubView] = useState<'list' | 'editor'>('list');
+  const [gallerySearchQuery, setGallerySearchQuery] = useState('');
+  const [selectedGalleryCategory, setSelectedGalleryCategory] = useState('All');
+
+  const [gallery3DSubView, setGallery3DSubView] = useState<'list' | 'editor'>('list');
+  const [artwork3DSearchQuery, setArtwork3DSearchQuery] = useState('');
+
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [selectedUserRoleFilter, setSelectedUserRoleFilter] = useState<'all' | 'admin' | 'member'>('all');
+  const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | '30d' | '1y'>('30d');
+
   const filteredPosts = useMemo(() => {
     return blogPosts.filter((p) => {
       const matchesCat = selectedPostCategory === 'All' || p.category === selectedPostCategory;
@@ -94,6 +115,18 @@ export default function AdminDashboardPage() {
       return matchesCat && (matchesTitle || matchesSlug || matchesCatName || matchesExcerpt);
     });
   }, [blogPosts, selectedPostCategory, postSearchQuery]);
+
+  const filteredGalleryItems = useMemo(() => {
+    return galleryItems.filter((item) => {
+      const matchesCat = selectedGalleryCategory === 'All' || item.category === selectedGalleryCategory;
+      const q = gallerySearchQuery.toLowerCase().trim();
+      if (!q) return matchesCat;
+      const matchesTitle = item.title?.toLowerCase().includes(q);
+      const matchesLoc = item.location?.toLowerCase().includes(q);
+      const matchesCam = item.cameraInfo?.toLowerCase().includes(q);
+      return matchesCat && (matchesTitle || matchesLoc || matchesCam);
+    });
+  }, [galleryItems, selectedGalleryCategory, gallerySearchQuery]);
 
   // Extended Post State with SEO & GEO AI Optimization
   const [newPost, setNewPost] = useState({
@@ -197,14 +230,38 @@ export default function AdminDashboardPage() {
     medium: 'Modelado 3D & Redes Generativas Latentes',
     imageUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=1200&q=80',
     analysis: 'Composición volumétrica con iluminación especular calculada para diálogo espacial en el pabellón tridimensional.',
-    palette: ['#d4af37', '#8a2be2', '#0f172a'],
+    palette: ['#06B6D4', '#4F46E5', '#08090E'],
     isExclusive: false,
   });
 
-  const [customColorInput, setCustomColorInput] = useState('#d4af37');
+  const [customColorInput, setCustomColorInput] = useState('#06B6D4');
   const [isUploading3DImage, setIsUploading3DImage] = useState(false);
   const [upload3DStatus, setUpload3DStatus] = useState<{ message: string; isError?: boolean } | null>(null);
   const [filter3DRoom, setFilter3DRoom] = useState<string>('all');
+
+  const filtered3DArtworks = useMemo(() => {
+    return (gallery3dArtworks || []).filter((art) => {
+      const matchesRoom = filter3DRoom === 'all' || art.roomId === filter3DRoom;
+      const q = artwork3DSearchQuery.toLowerCase().trim();
+      if (!q) return matchesRoom;
+      const matchesTitle = art.title?.toLowerCase().includes(q);
+      const matchesArtist = art.artist?.toLowerCase().includes(q);
+      const matchesMedium = art.medium?.toLowerCase().includes(q);
+      return matchesRoom && (matchesTitle || matchesArtist || matchesMedium);
+    });
+  }, [gallery3dArtworks, filter3DRoom, artwork3DSearchQuery]);
+
+  const filteredUsersList = useMemo(() => {
+    return (usersList || []).filter((u) => {
+      const matchesRole = selectedUserRoleFilter === 'all' || u.role === selectedUserRoleFilter;
+      const q = userSearchQuery.toLowerCase().trim();
+      if (!q) return matchesRole;
+      const matchesName = u.name?.toLowerCase().includes(q);
+      const matchesEmail = u.email?.toLowerCase().includes(q);
+      const matchesUsername = u.username?.toLowerCase().includes(q);
+      return matchesRole && (matchesName || matchesEmail || matchesUsername);
+    });
+  }, [usersList, selectedUserRoleFilter, userSearchQuery]);
 
   if (!user || !isAdmin) {
     return (
@@ -421,12 +478,8 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleCreateGalleryItem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newGallery.title || !newGallery.imageUrl) return;
-
-    await addGalleryItem(newGallery);
-
+  const resetGalleryForm = () => {
+    setEditingGalleryId(null);
     setNewGallery({
       title: '',
       category: 'Lookbook',
@@ -438,12 +491,46 @@ export default function AdminDashboardPage() {
       date: new Date().toISOString().split('T')[0],
     });
     setUploadGalleryStatus(null);
+  };
 
-    setActionFeedback({
-      message: `¡Fotografía "${newGallery.title}" guardada en Firebase y añadida a la galería con éxito!`,
-      type: 'success',
+  const handleEditGalleryClick = (item: any) => {
+    setEditingGalleryId(item.id);
+    setNewGallery({
+      title: item.title || '',
+      category: item.category || 'Lookbook',
+      imageUrl: item.imageUrl || '',
+      location: item.location || '',
+      cameraInfo: item.cameraInfo || '',
+      isExclusive: !!item.isExclusive,
+      aspectRatio: item.aspectRatio || 'portrait',
+      date: item.date || new Date().toISOString().split('T')[0],
     });
+    setUploadGalleryStatus(null);
+    setGallerySubView('editor');
+    window.scrollTo({ top: 320, behavior: 'smooth' });
+  };
+
+  const handleCreateGalleryItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGallery.title || !newGallery.imageUrl) return;
+
+    if (editingGalleryId) {
+      await updateGalleryItem(editingGalleryId, newGallery);
+      setActionFeedback({
+        message: `¡Fotografía "${newGallery.title}" actualizada con éxito en la galería!`,
+        type: 'success',
+      });
+    } else {
+      await addGalleryItem(newGallery);
+      setActionFeedback({
+        message: `¡Fotografía "${newGallery.title}" guardada en Firebase y añadida a la galería con éxito!`,
+        type: 'success',
+      });
+    }
     setTimeout(() => setActionFeedback(null), 5000);
+
+    resetGalleryForm();
+    setGallerySubView('list');
   };
 
   const handleConfirmDeletePost = async (p: BlogPost) => {
@@ -520,36 +607,8 @@ export default function AdminDashboardPage() {
     }));
   };
 
-  const handleCreate3DArtwork = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!new3DArtwork.title || !new3DArtwork.imageUrl) {
-      setActionFeedback({ message: 'Por favor completa el título y la imagen de la obra 3D.', type: 'error' });
-      setTimeout(() => setActionFeedback(null), 5000);
-      return;
-    }
-
-    const roomObj = DEFAULT_VIRTUAL_ROOMS.find((r) => r.id === new3DArtwork.roomId);
-
-    await addGallery3DArtwork({
-      title: new3DArtwork.title,
-      roomId: new3DArtwork.roomId,
-      roomName: roomObj ? roomObj.name : new3DArtwork.roomName,
-      artist: new3DArtwork.artist || 'Lola Work Studio',
-      year: new3DArtwork.year || '2026',
-      medium: new3DArtwork.medium || 'Modelado 3D & Redes Generativas',
-      imageUrl: new3DArtwork.imageUrl,
-      analysis: new3DArtwork.analysis || 'Obra interactiva expuesta en el pabellón tridimensional.',
-      palette: new3DArtwork.palette.length > 0 ? new3DArtwork.palette : ['#d4af37', '#8a2be2'],
-      isExclusive: new3DArtwork.isExclusive,
-    });
-
-    setActionFeedback({
-      message: `¡Obra 3D "${new3DArtwork.title}" guardada en Firebase y expuesta en ${roomObj?.name || new3DArtwork.roomId}!`,
-      type: 'success',
-    });
-    setTimeout(() => setActionFeedback(null), 5000);
-
-    // Reset Form
+  const reset3DArtworkForm = () => {
+    setEditing3DArtworkId(null);
     setNew3DArtwork({
       title: '',
       roomId: 'gran-salon',
@@ -559,10 +618,70 @@ export default function AdminDashboardPage() {
       medium: 'Modelado 3D & Redes Generativas Latentes',
       imageUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=1200&q=80',
       analysis: 'Composición volumétrica con iluminación especular calculada para diálogo espacial en el pabellón tridimensional.',
-      palette: ['#d4af37', '#8a2be2', '#0f172a'],
+      palette: ['#06B6D4', '#4F46E5', '#08090E'],
       isExclusive: false,
     });
     setUpload3DStatus(null);
+  };
+
+  const handleEdit3DArtworkClick = (artwork: Gallery3DArtwork) => {
+    setEditing3DArtworkId(artwork.id);
+    setNew3DArtwork({
+      title: artwork.title || '',
+      roomId: artwork.roomId || 'gran-salon',
+      roomName: artwork.roomName || 'Sala Principal (Gran Salón)',
+      artist: artwork.artist || 'Lola Work Studio',
+      year: artwork.year || '2026',
+      medium: artwork.medium || 'Modelado 3D & Redes Generativas',
+      imageUrl: artwork.imageUrl || '',
+      analysis: artwork.analysis || '',
+      palette: artwork.palette && artwork.palette.length > 0 ? artwork.palette : ['#06B6D4', '#4F46E5'],
+      isExclusive: !!artwork.isExclusive,
+    });
+    setUpload3DStatus(null);
+    setGallery3DSubView('editor');
+    window.scrollTo({ top: 320, behavior: 'smooth' });
+  };
+
+  const handleCreate3DArtwork = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!new3DArtwork.title || !new3DArtwork.imageUrl) {
+      setActionFeedback({ message: 'Por favor completa el título y la imagen de la obra 3D.', type: 'error' });
+      setTimeout(() => setActionFeedback(null), 5000);
+      return;
+    }
+
+    const roomObj = DEFAULT_VIRTUAL_ROOMS.find((r) => r.id === new3DArtwork.roomId);
+    const artworkPayload = {
+      title: new3DArtwork.title,
+      roomId: new3DArtwork.roomId,
+      roomName: roomObj ? roomObj.name : new3DArtwork.roomName,
+      artist: new3DArtwork.artist || 'Lola Work Studio',
+      year: new3DArtwork.year || '2026',
+      medium: new3DArtwork.medium || 'Modelado 3D & Redes Generativas',
+      imageUrl: new3DArtwork.imageUrl,
+      analysis: new3DArtwork.analysis || 'Obra interactiva expuesta en el pabellón tridimensional.',
+      palette: new3DArtwork.palette.length > 0 ? new3DArtwork.palette : ['#06B6D4', '#4F46E5'],
+      isExclusive: new3DArtwork.isExclusive,
+    };
+
+    if (editing3DArtworkId) {
+      await updateGallery3DArtwork(editing3DArtworkId, artworkPayload);
+      setActionFeedback({
+        message: `¡Obra 3D "${new3DArtwork.title}" actualizada con éxito en Firebase!`,
+        type: 'success',
+      });
+    } else {
+      await addGallery3DArtwork(artworkPayload);
+      setActionFeedback({
+        message: `¡Obra 3D "${new3DArtwork.title}" guardada en Firebase y expuesta en ${roomObj?.name || new3DArtwork.roomId}!`,
+        type: 'success',
+      });
+    }
+    setTimeout(() => setActionFeedback(null), 5000);
+
+    reset3DArtworkForm();
+    setGallery3DSubView('list');
   };
 
   const handleConfirmDelete3DArtwork = async (artworkId: string, artworkTitle?: string) => {
@@ -1774,766 +1893,471 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* TAB 2: GALLERY MANAGEMENT */}
+      {/* TAB 2: GALLERY MANAGEMENT (2D EDITORIAL CATALOG) */}
       {activeTab === 'gallery' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '3rem', alignItems: 'start' }}>
-          <div className="glass-panel" style={{ padding: '2rem' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1.5rem' }}>Añadir Fotografía a Galería</h3>
+        <div className="flex flex-col gap-8">
+          {gallerySubView === 'list' ? (
+            <div className="flex flex-col gap-6">
+              {/* Top Action Bar */}
+              <div className="glass-panel p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-white/10">
+                <div>
+                  <h2 className="text-xl font-bold font-syne text-white flex items-center gap-2">
+                    <Icons.Camera size={22} className="text-[#06B6D4]" />
+                    Catálogo Editorial Fotográfico ({galleryItems.length})
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#94A3B8] mt-1">
+                    Fotografías en alta resolución publicadas en el catálogo 2D y la galería web de Lola Workia.
+                  </p>
+                </div>
 
-            <form onSubmit={handleCreateGalleryItem} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>Título *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej. Atardecer en Tokio"
-                  className="input-field"
-                  value={newGallery.title}
-                  onChange={(e) => setNewGallery({ ...newGallery, title: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>Categoría</label>
-                <select
-                  className="input-field"
-                  value={newGallery.category}
-                  onChange={(e) => setNewGallery({ ...newGallery, category: e.target.value })}
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetGalleryForm();
+                    setGallerySubView('editor');
+                  }}
+                  className="btn-cyan py-2.5 px-5 text-xs sm:text-sm font-bold flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] shrink-0"
                 >
-                  <option value="Lookbook">Lookbook</option>
-                  <option value="Viajes">Viajes</option>
-                  <option value="Estilo de Vida">Estilo de Vida</option>
-                  <option value="VIP Exclusive">VIP Exclusive</option>
-                </select>
+                  <Plus size={16} /> Nueva Fotografía
+                </button>
               </div>
 
-              {/* Firebase Storage File Upload */}
-              <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-subtle)', padding: '1rem', borderRadius: 'var(--radius-sm)' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--accent-gold)' }}>
-                  📸 Archivo de Imagen (Firebase Storage / Equipo)
-                </label>
-
-                <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
+              {/* Filters & Search Toolbar */}
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+                <div className="relative flex-1 max-w-md">
+                  <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
                   <input
-                    type="file"
-                    accept="image/*"
-                    id="gallery2dFileInput"
-                    style={{ display: 'none' }}
-                    onChange={handleGalleryImageFileUpload}
-                    disabled={isUploadingGalleryImage}
+                    type="text"
+                    placeholder="Buscar por título, ubicación o cámara..."
+                    value={gallerySearchQuery}
+                    onChange={(e) => setGallerySearchQuery(e.target.value)}
+                    className="input-field text-xs sm:text-sm pl-10 py-2 w-full"
                   />
-                  <label
-                    htmlFor="gallery2dFileInput"
-                    className="btn-secondary"
-                    style={{
-                      padding: '0.6rem 1.1rem',
-                      fontSize: '0.8rem',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid var(--accent-gold)',
-                      color: '#fff',
-                    }}
-                  >
-                    <Icons.Camera size={16} /> Subir Imagen desde el Ordenador
-                  </label>
-
-                  {isUploadingGalleryImage && (
-                    <span style={{ fontSize: '0.8rem', color: 'var(--accent-gold)', fontWeight: 600 }}>
-                      ⚡ Subiendo a Firebase Storage...
-                    </span>
+                  {gallerySearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setGallerySearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
+                    >
+                      ✕
+                    </button>
                   )}
                 </div>
 
-                {uploadGalleryStatus && (
-                  <div
-                    style={{
-                      fontSize: '0.75rem',
-                      color: uploadGalleryStatus.isError ? '#fbbf24' : '#4ade80',
-                      marginBottom: '0.8rem',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {uploadGalleryStatus.message}
-                  </div>
-                )}
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>URL de Imagen HD *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="https://..."
-                    className="input-field"
-                    style={{ fontSize: '0.8rem' }}
-                    value={newGallery.imageUrl}
-                    onChange={(e) => setNewGallery({ ...newGallery, imageUrl: e.target.value })}
-                  />
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 custom-scrollbar">
+                  {['All', 'Lookbook', 'Viajes', 'Estilo de Vida', 'VIP Exclusive'].map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setSelectedGalleryCategory(cat)}
+                      className={`text-xs px-3 py-1.5 rounded-full font-medium whitespace-nowrap transition-colors border ${
+                        selectedGalleryCategory === cat
+                          ? 'bg-[#06B6D4]/20 border-[#06B6D4] text-[#06B6D4] font-bold'
+                          : 'border-white/10 text-slate-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      {cat === 'All' ? 'Todas' : cat}
+                    </button>
+                  ))}
                 </div>
-
-                {newGallery.imageUrl && (
-                  <div style={{ marginTop: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.8rem', background: 'rgba(0,0,0,0.4)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                    <img
-                      src={newGallery.imageUrl}
-                      alt="Previsualización Galería"
-                      style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}
-                    />
-                    <div style={{ overflow: 'hidden' }}>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fff' }}>Imagen Seleccionada</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '260px' }}>
-                        {newGallery.imageUrl}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>Ubicación</label>
-                <input
-                  type="text"
-                  placeholder="Ej. París, Francia"
-                  className="input-field"
-                  value={newGallery.location}
-                  onChange={(e) => setNewGallery({ ...newGallery, location: e.target.value })}
-                />
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <input
-                  type="checkbox"
-                  id="exclusiveGalCheck"
-                  checked={newGallery.isExclusive}
-                  onChange={(e) => setNewGallery({ ...newGallery, isExclusive: e.target.checked })}
-                />
-                <label htmlFor="exclusiveGalCheck" style={{ fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
-                  🔒 Reservado solo para Miembros VIP
-                </label>
-              </div>
-
-              <button type="submit" className="btn-primary" style={{ padding: '0.75rem' }}>
-                Guardar en Galería
-              </button>
-            </form>
-          </div>
-
-          <div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1.5rem' }}>Elementos en Galería ({galleryItems.length})</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
-              {galleryItems.map((item) => {
-                const isConfirming = deletingGalleryId === item.id;
-                return (
-                  <div key={item.id} className="glass-panel" style={{ overflow: 'hidden', position: 'relative' }}>
-                    <img src={item.imageUrl} alt={item.title} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
-                    <div style={{ padding: '0.8rem' }}>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</div>
-                      <div style={{ marginTop: '0.5rem' }}>
-                        {isConfirming ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <button
-                              type="button"
-                              onClick={() => handleConfirmDeleteGallery(item.id, item.title)}
-                              style={{
-                                color: '#fff',
-                                background: '#dc2626',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '0.25rem 0.5rem',
-                                cursor: 'pointer',
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                              }}
-                            >
-                              Confirmar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeletingGalleryId(null)}
-                              style={{
-                                color: 'var(--text-muted)',
-                                background: 'rgba(255,255,255,0.1)',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '0.25rem 0.4rem',
-                                cursor: 'pointer',
-                                fontSize: '0.75rem',
-                              }}
-                            >
-                              ✕
-                            </button>
+              {/* Photos Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {filteredGalleryItems.map((item) => {
+                  const isConfirming = deletingGalleryId === item.id;
+                  return (
+                    <div
+                      key={item.id}
+                      className="glass-panel rounded-xl overflow-hidden border border-white/10 flex flex-col group transition-all duration-300 hover:border-[#06B6D4]/40"
+                    >
+                      <div className="relative aspect-[4/3] bg-black/40 overflow-hidden">
+                        <img
+                          src={item.imageUrl}
+                          alt={item.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                        <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                          <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-black/70 backdrop-blur-md text-[#06B6D4] border border-[#06B6D4]/40 font-bold uppercase">
+                            {item.category}
+                          </span>
+                        </div>
+                        {item.isExclusive && (
+                          <div className="absolute top-2 right-2">
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 backdrop-blur-md text-amber-300 border border-amber-500/40 font-bold">
+                              🔒 VIP
+                            </span>
                           </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setDeletingGalleryId(item.id)}
-                            style={{ color: '#f87171', fontSize: '0.75rem', border: 'none', background: 'none', cursor: 'pointer' }}
-                          >
-                            Eliminar
-                          </button>
                         )}
                       </div>
+
+                      <div className="p-4 flex-1 flex flex-col justify-between gap-3">
+                        <div>
+                          <h4 className="font-syne font-bold text-sm text-white truncate" title={item.title}>
+                            {item.title}
+                          </h4>
+                          {(item.location || item.cameraInfo) && (
+                            <p className="text-[11px] text-[#94A3B8] mt-1 flex items-center gap-1 truncate">
+                              {item.location && <span>📍 {item.location}</span>}
+                              {item.location && item.cameraInfo && <span>•</span>}
+                              {item.cameraInfo && <span>📷 {item.cameraInfo}</span>}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEditGalleryClick(item)}
+                            className="text-xs text-[#06B6D4] hover:text-[#38BDF8] flex items-center gap-1 font-semibold transition-colors"
+                          >
+                            <Edit size={13} /> Editar
+                          </button>
+
+                          {isConfirming ? (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleConfirmDeleteGallery(item.id, item.title)}
+                                className="text-white bg-red-600 hover:bg-red-500 text-[11px] font-bold px-2 py-1 rounded transition-colors"
+                              >
+                                Confirmar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeletingGalleryId(null)}
+                                className="text-slate-400 hover:text-white text-[11px] px-1.5 py-1 rounded bg-white/5"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setDeletingGalleryId(item.id)}
+                              className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors"
+                            >
+                              <Trash2 size={13} /> Eliminar
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+
+              {filteredGalleryItems.length === 0 && (
+                <div className="glass-panel p-12 rounded-2xl text-center text-[#94A3B8] border border-white/10">
+                  <ImageIcon size={36} className="mx-auto mb-3 opacity-40 text-[#06B6D4]" />
+                  <p className="font-semibold text-white">No se encontraron fotografías</p>
+                  <p className="text-xs mt-1 text-slate-400">
+                    {gallerySearchQuery || selectedGalleryCategory !== 'All'
+                      ? 'Prueba a cambiar los filtros o el término de búsqueda.'
+                      : 'Añade la primera fotografía con el botón superior.'}
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            /* Subview: Gallery Editor */
+            <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-white/10 max-w-4xl mx-auto w-full">
+              <div className="border-b border-white/10 pb-5 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-bold font-syne text-white flex items-center gap-2">
+                    {editingGalleryId ? (
+                      <>
+                        <Edit size={20} className="text-amber-400" /> Modificar Fotografía en Galería
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={20} className="text-[#06B6D4]" /> Añadir Fotografía al Catálogo
+                      </>
+                    )}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-[#94A3B8] mt-1">
+                    Configura la imagen en alta resolución, categoría y parámetros de exposición.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetGalleryForm();
+                    setGallerySubView('list');
+                  }}
+                  className="btn-secondary py-2 px-4 text-xs flex items-center gap-1.5 self-start sm:self-auto"
+                >
+                  <ArrowLeft size={14} /> Cancelar y Volver
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateGalleryItem} className="flex flex-col gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold mb-1 text-slate-200">
+                      Título de la Fotografía *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej. Atardecer en Tokio - Niebla de Neón"
+                      className="input-field text-sm"
+                      value={newGallery.title}
+                      onChange={(e) => setNewGallery({ ...newGallery, title: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-200">
+                      Categoría *
+                    </label>
+                    <select
+                      className="input-field text-sm cursor-pointer"
+                      value={newGallery.category}
+                      onChange={(e) => setNewGallery({ ...newGallery, category: e.target.value })}
+                    >
+                      <option value="Lookbook">Lookbook</option>
+                      <option value="Viajes">Viajes</option>
+                      <option value="Estilo de Vida">Estilo de Vida</option>
+                      <option value="VIP Exclusive">VIP Exclusive</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-200">
+                      Proporción de Aspecto
+                    </label>
+                    <select
+                      className="input-field text-sm cursor-pointer"
+                      value={newGallery.aspectRatio}
+                      onChange={(e) => setNewGallery({ ...newGallery, aspectRatio: e.target.value as any })}
+                    >
+                      <option value="portrait">Vertical (Portrait - 4:5)</option>
+                      <option value="landscape">Horizontal (Landscape - 16:9)</option>
+                      <option value="square">Cuadrado (Square - 1:1)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Image Upload Box */}
+                <div className="p-5 rounded-xl border border-[#06B6D4]/30 bg-black/30 flex flex-col gap-4">
+                  <label className="block text-xs font-bold text-[#06B6D4] uppercase tracking-wider font-mono">
+                    📸 Imagen en Alta Resolución (Firebase Storage / Archivo Local)
+                  </label>
+
+                  <div className="flex gap-3 items-center flex-wrap">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="gallery2dFileInput"
+                      style={{ display: 'none' }}
+                      onChange={handleGalleryImageFileUpload}
+                      disabled={isUploadingGalleryImage}
+                    />
+                    <label
+                      htmlFor="gallery2dFileInput"
+                      className="btn-cyan py-2.5 px-4 text-xs cursor-pointer inline-flex items-center gap-2 font-bold"
+                    >
+                      <Camera size={15} /> Subir Imagen desde el Ordenador
+                    </label>
+
+                    {isUploadingGalleryImage && (
+                      <span className="text-xs text-[#06B6D4] font-semibold animate-pulse">
+                        ⚡ Subiendo a Firebase Storage...
+                      </span>
+                    )}
+                  </div>
+
+                  {uploadGalleryStatus && (
+                    <div
+                      className={`text-xs font-medium ${
+                        uploadGalleryStatus.isError ? 'text-amber-400' : 'text-emerald-400'
+                      }`}
+                    >
+                      {uploadGalleryStatus.message}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs text-[#94A3B8] mb-1">URL Directa de Imagen HD *</label>
+                    <input
+                      type="url"
+                      required
+                      placeholder="https://images.unsplash.com/..."
+                      className="input-field text-xs font-mono"
+                      value={newGallery.imageUrl}
+                      onChange={(e) => setNewGallery({ ...newGallery, imageUrl: e.target.value })}
+                    />
+                  </div>
+
+                  {newGallery.imageUrl && (
+                    <div className="flex items-center gap-4 p-3 bg-black/40 rounded-xl border border-white/10">
+                      <img
+                        src={newGallery.imageUrl}
+                        alt="Previsualización"
+                        className="w-20 h-16 object-cover rounded-lg border border-white/20"
+                      />
+                      <div className="overflow-hidden">
+                        <div className="text-xs font-bold text-white">Imagen Seleccionada</div>
+                        <div className="text-[11px] text-[#94A3B8] truncate max-w-sm">
+                          {newGallery.imageUrl}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-200">
+                      Ubicación de la Captura
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej. Kioto, Japón"
+                      className="input-field text-sm"
+                      value={newGallery.location}
+                      onChange={(e) => setNewGallery({ ...newGallery, location: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-200">
+                      Información de Cámara / Setup
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej. Sony A7IV 35mm f/1.4"
+                      className="input-field text-sm"
+                      value={newGallery.cameraInfo}
+                      onChange={(e) => setNewGallery({ ...newGallery, cameraInfo: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 p-3 rounded-lg bg-black/20 border border-white/10">
+                  <input
+                    type="checkbox"
+                    id="exclusiveGalCheck"
+                    className="rounded border-white/20 text-[#06B6D4] focus:ring-0"
+                    checked={newGallery.isExclusive}
+                    onChange={(e) => setNewGallery({ ...newGallery, isExclusive: e.target.checked })}
+                  />
+                  <label htmlFor="exclusiveGalCheck" className="text-xs font-semibold text-slate-200 cursor-pointer">
+                    🔒 Contenido Exclusivo para Miembros VIP
+                  </label>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetGalleryForm();
+                      setGallerySubView('list');
+                    }}
+                    className="btn-secondary w-full sm:w-auto text-xs py-2.5 px-5 flex items-center justify-center gap-2"
+                  >
+                    <ArrowLeft size={14} /> Cancelar y Volver
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="btn-cyan w-full sm:w-auto text-sm py-3 px-8 font-bold flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+                  >
+                    {editingGalleryId ? '💾 Actualizar Fotografía en Catálogo' : '🚀 Guardar Fotografía en Galería'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       )}
 
-      {/* TAB 3: GESTIÓN DE GALERÍA 3D & ESTANCIAS (FIREBASE FIRESTORE & STORAGE BUCKET) */}
+      {/* TAB 3: GESTIÓN DE GALERÍA 3D & ESTANCIAS */}
       {activeTab === 'gallery3d' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-          {/* Header Banner with Room Overview & Direct 3D Gallery Link */}
-          <div
-            className="glass-panel"
-            style={{
-              padding: '2rem',
-              borderRadius: 'var(--radius-lg)',
-              border: '1px solid rgba(212, 175, 55, 0.35)',
-              background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.08) 0%, rgba(9, 10, 15, 0.95) 100%)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem' }}>
+        <div className="flex flex-col gap-8">
+          {/* Header Banner */}
+          <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-[#06B6D4]/30 bg-gradient-to-br from-[#06B6D4]/10 via-[#11131F] to-[#08090E]">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.5rem' }}>
-                  <span className="badge badge-gold" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                <div className="flex items-center gap-3 mb-2 flex-wrap">
+                  <span className="font-mono text-[10px] px-2.5 py-1 bg-[#06B6D4]/15 text-[#06B6D4] border border-[#06B6D4]/30 rounded uppercase tracking-wider font-bold flex items-center gap-1.5">
                     <Box size={14} /> Pabellón Virtual WebGL
                   </span>
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      fontFamily: 'monospace',
-                      color: 'var(--accent-gold)',
-                      padding: '0.2rem 0.6rem',
-                      borderRadius: '4px',
-                      background: 'rgba(212, 175, 55, 0.1)',
-                      border: '1px solid rgba(212, 175, 55, 0.2)',
-                    }}
-                  >
-                    COLECCIÓN: gallery3d & BUCKET: gallery_3d/
+                  <span className="font-mono text-[10px] px-2.5 py-1 bg-purple-500/15 text-purple-300 border border-purple-500/30 rounded uppercase tracking-wider font-bold">
+                    COLECCIÓN: gallery3d
                   </span>
                 </div>
-                <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', marginBottom: '0.4rem' }}>
-                  Gestor de Obras & Estancias Tridimensionales
+                <h2 className="font-syne font-bold text-2xl text-white mb-1">
+                  Gestión de Obras &amp; Estancias Tridimensionales
                 </h2>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '750px', lineHeight: '1.5' }}>
-                  Da de alta las imágenes y cédulas curatoriales que se exponen en las salas del museo virtual 3D. Los datos se guardan en Firebase Firestore y los archivos en el Storage Bucket.
+                <p className="text-[#94A3B8] text-xs sm:text-sm max-w-2xl leading-relaxed">
+                  Supervisa y da de alta las obras, texturas y cédulas curatoriales expuestas en las salas del museo 3D WebGL. Sincronizado en tiempo real con Firebase Firestore y Storage.
                 </p>
               </div>
 
               <Link
                 href="/galeria"
-                className="btn-primary"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  fontSize: '0.9rem',
-                  padding: '0.75rem 1.4rem',
-                  boxShadow: '0 4px 15px rgba(212, 175, 55, 0.3)',
-                }}
+                className="btn-cyan py-2.5 px-5 text-xs sm:text-sm font-bold flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] shrink-0"
               >
                 <Globe size={16} /> Ver Galería 3D en Vivo <ExternalLink size={14} />
               </Link>
             </div>
 
             {/* Room Distribution Metric Cards */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '1rem',
-                marginTop: '1.8rem',
-                paddingTop: '1.5rem',
-                borderTop: '1px solid var(--border-subtle)',
-              }}
-            >
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-white/10">
               {DEFAULT_VIRTUAL_ROOMS.map((room, idx) => {
                 const countInRoom = (gallery3dArtworks || []).filter((a) => a.roomId === room.id).length;
                 return (
                   <div
                     key={room.id}
-                    style={{
-                      padding: '1rem',
-                      borderRadius: 'var(--radius-md)',
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid var(--border-subtle)',
-                    }}
+                    className="p-3.5 rounded-xl bg-black/30 border border-white/10 hover:border-[#06B6D4]/30 transition-colors"
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 700 }}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[10px] font-mono text-[#06B6D4] font-bold">
                         SALA 0{idx + 1}
                       </span>
-                      <span
-                        style={{
-                          fontSize: '0.75rem',
-                          padding: '0.1rem 0.5rem',
-                          borderRadius: '10px',
-                          background: 'rgba(212, 175, 55, 0.15)',
-                          color: '#fff',
-                          fontWeight: 700,
-                        }}
-                      >
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#06B6D4]/10 text-[#06B6D4] font-bold">
                         {countInRoom} {countInRoom === 1 ? 'obra' : 'obras'}
                       </span>
                     </div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>{room.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                      {room.atmosphere}
-                    </div>
+                    <div className="text-xs sm:text-sm font-bold text-white truncate">{room.name}</div>
+                    <div className="text-[11px] text-[#94A3B8] mt-0.5 truncate">{room.atmosphere}</div>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Main 2-Column Interface: Creation Form vs Artworks Registry */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '2.5rem', alignItems: 'start' }}>
-            {/* Left Column: Artwork Registration Form */}
-            <div className="glass-panel" style={{ padding: '2.5rem', borderRadius: 'var(--radius-lg)' }}>
-              <div style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1.2rem', marginBottom: '1.8rem' }}>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <UploadCloud size={20} style={{ color: 'var(--accent-gold)' }} />
-                  Alta de Obra para Estancia 3D
-                </h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
-                  Carga los metadatos completos y la textura en alta resolución.
-                </p>
-              </div>
-
-              <form onSubmit={handleCreate3DArtwork} style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}>
-                {/* 1. Artwork Title */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>
-                    Título de la Obra *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej. Metamorfosis de la Luz Sintética"
-                    className="input-field"
-                    value={new3DArtwork.title}
-                    onChange={(e) => setNew3DArtwork({ ...new3DArtwork, title: e.target.value })}
-                  />
-                </div>
-
-                {/* 2. Room Selector */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>
-                    Estancia / Sala Virtual de Destino *
-                  </label>
-                  <select
-                    className="input-field"
-                    value={new3DArtwork.roomId}
-                    onChange={(e) => {
-                      const selectedId = e.target.value;
-                      const roomObj = DEFAULT_VIRTUAL_ROOMS.find((r) => r.id === selectedId);
-                      setNew3DArtwork({
-                        ...new3DArtwork,
-                        roomId: selectedId,
-                        roomName: roomObj ? roomObj.name : selectedId,
-                      });
-                    }}
-                  >
-                    {DEFAULT_VIRTUAL_ROOMS.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name} — ({r.subtitle})
-                      </option>
-                    ))}
-                    <option value="sala-personalizada">✨ Nueva Sala Personalizada</option>
-                  </select>
-                </div>
-
-                {new3DArtwork.roomId === 'sala-personalizada' && (
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem' }}>
-                      Nombre de la Sala Personalizada
-                    </label>
+          {gallery3DSubView === 'list' ? (
+            <div className="flex flex-col gap-6">
+              {/* Toolbar */}
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+                <div className="flex flex-col sm:flex-row gap-3 flex-1 max-w-xl">
+                  <div className="relative flex-1">
+                    <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
                     <input
                       type="text"
-                      placeholder="Ej. Ala de Arte Cuántico"
-                      className="input-field"
-                      value={new3DArtwork.roomName}
-                      onChange={(e) => setNew3DArtwork({ ...new3DArtwork, roomName: e.target.value })}
+                      placeholder="Buscar obra 3D por título, artista o técnica..."
+                      value={artwork3DSearchQuery}
+                      onChange={(e) => setArtwork3DSearchQuery(e.target.value)}
+                      className="input-field text-xs sm:text-sm pl-10 py-2 w-full"
                     />
-                  </div>
-                )}
-
-                {/* 3. Artist & Year Row */}
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>
-                      Artista / Estudio Creador
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej. Lola Work Studio & Algoritmo"
-                      className="input-field"
-                      value={new3DArtwork.artist}
-                      onChange={(e) => setNew3DArtwork({ ...new3DArtwork, artist: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>
-                      Año
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="2026"
-                      className="input-field"
-                      value={new3DArtwork.year}
-                      onChange={(e) => setNew3DArtwork({ ...new3DArtwork, year: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* 4. Medium / Computational Technique */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>
-                    Técnica / Medio Computacional
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ej. Render Unreal Engine 5.4 & Postproceso Digital"
-                    className="input-field"
-                    value={new3DArtwork.medium}
-                    onChange={(e) => setNew3DArtwork({ ...new3DArtwork, medium: e.target.value })}
-                  />
-                </div>
-
-                {/* 5. Firebase Storage Bucket Upload Section */}
-                <div
-                  style={{
-                    padding: '1.4rem',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'rgba(0, 0, 0, 0.4)',
-                    border: '1px dashed rgba(212, 175, 55, 0.4)',
-                  }}
-                >
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.6rem', color: 'var(--accent-gold)' }}>
-                    Imagen / Textura para la Sala (Firebase Storage Bucket) *
-                  </label>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                    <label
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.5rem',
-                        padding: '1.2rem',
-                        borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        border: '1px solid var(--border-subtle)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      <UploadCloud size={24} style={{ color: isUploading3DImage ? '#fbbf24' : 'var(--accent-gold)' }} />
-                      <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                        {isUploading3DImage ? 'Subiendo archivo al Bucket...' : 'Selecciona una imagen desde tu equipo'}
-                      </span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        JPG, PNG, WebP en alta resolución (se alojará en Storage)
-                      </span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handle3DImageFileUpload}
-                        disabled={isUploading3DImage}
-                        style={{ display: 'none' }}
-                      />
-                    </label>
-
-                    {upload3DStatus && (
-                      <div
-                        style={{
-                          fontSize: '0.8rem',
-                          color: upload3DStatus.isError ? '#fbbf24' : '#4ade80',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.4rem',
-                        }}
+                    {artwork3DSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setArtwork3DSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
                       >
-                        <CheckCircle2 size={14} /> {upload3DStatus.message}
-                      </div>
-                    )}
-
-                    {/* Or URL input */}
-                    <div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
-                        O ingresa una URL directa de imagen:
-                      </div>
-                      <input
-                        type="url"
-                        required
-                        placeholder="https://images.unsplash.com/..."
-                        className="input-field"
-                        style={{ fontSize: '0.85rem' }}
-                        value={new3DArtwork.imageUrl}
-                        onChange={(e) => setNew3DArtwork({ ...new3DArtwork, imageUrl: e.target.value })}
-                      />
-                    </div>
-
-                    {/* Preview box */}
-                    {new3DArtwork.imageUrl && (
-                      <div
-                        style={{
-                          position: 'relative',
-                          borderRadius: 'var(--radius-sm)',
-                          overflow: 'hidden',
-                          height: '140px',
-                          border: '1px solid rgba(212, 175, 55, 0.3)',
-                        }}
-                      >
-                        <img
-                          src={new3DArtwork.imageUrl}
-                          alt="Previsualización 3D"
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                        <div
-                          style={{
-                            position: 'absolute',
-                            bottom: '0',
-                            left: '0',
-                            right: '0',
-                            padding: '0.4rem 0.8rem',
-                            background: 'rgba(0, 0, 0, 0.75)',
-                            backdropFilter: 'blur(6px)',
-                            fontSize: '0.75rem',
-                            color: '#fff',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                          }}
-                        >
-                          <span>Textura cargada</span>
-                          <span style={{ color: 'var(--accent-gold)' }}>Lista para la sala</span>
-                        </div>
-                      </div>
+                        ✕
+                      </button>
                     )}
                   </div>
-                </div>
 
-                {/* 6. Curatorial Analysis / Artwork Concept */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>
-                    Cédula Curatorial & Análisis de la Obra en la Estancia
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Describe el concepto, diálogo con la luz de la sala y la poética de la obra..."
-                    className="input-field"
-                    value={new3DArtwork.analysis}
-                    onChange={(e) => setNew3DArtwork({ ...new3DArtwork, analysis: e.target.value })}
-                  />
-                </div>
-
-                {/* 7. Color Palette Picker */}
-                <div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>
-                    <Palette size={16} style={{ color: 'var(--accent-gold)' }} />
-                    Paleta Cromática (Hex Swatches)
-                  </label>
-
-                  {/* Active Swatches */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
-                    {new3DArtwork.palette.map((color) => (
-                      <span
-                        key={color}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.4rem',
-                          padding: '0.25rem 0.6rem',
-                          borderRadius: 'var(--radius-full)',
-                          background: 'rgba(255, 255, 255, 0.06)',
-                          border: '1px solid var(--border-subtle)',
-                          fontSize: '0.8rem',
-                          color: '#fff',
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: '12px',
-                            height: '12px',
-                            borderRadius: '50%',
-                            background: color,
-                            border: '1px solid rgba(255, 255, 255, 0.3)',
-                          }}
-                        />
-                        <span style={{ fontFamily: 'monospace' }}>{color}</span>
-                        {new3DArtwork.palette.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveColorFromPalette(color)}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: 'var(--text-muted)',
-                              cursor: 'pointer',
-                              padding: '0 2px',
-                              fontSize: '0.8rem',
-                            }}
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Color Add Row */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.8rem' }}>
-                    <input
-                      type="color"
-                      value={customColorInput}
-                      onChange={(e) => setCustomColorInput(e.target.value)}
-                      style={{
-                        width: '38px',
-                        height: '38px',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--border-subtle)',
-                        background: 'none',
-                        cursor: 'pointer',
-                        padding: '2px',
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="#d4af37"
-                      className="input-field"
-                      style={{ width: '110px', fontSize: '0.85rem', fontFamily: 'monospace' }}
-                      value={customColorInput}
-                      onChange={(e) => setCustomColorInput(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddColorToPalette}
-                      className="btn-secondary"
-                      style={{ padding: '0.5rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-                    >
-                      <Plus size={14} /> Añadir Color
-                    </button>
-                  </div>
-
-                  {/* Preset Palettes */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Presets rápidos:</span>
-                    <button
-                      type="button"
-                      onClick={() => setNew3DArtwork((prev) => ({ ...prev, palette: ['#d4af37', '#8a2be2', '#0f172a'] }))}
-                      style={{
-                        padding: '0.2rem 0.5rem',
-                        fontSize: '0.7rem',
-                        borderRadius: '4px',
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-secondary)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Oro & Púrpura
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNew3DArtwork((prev) => ({ ...prev, palette: ['#f43f5e', '#38bdf8', '#1e1b4b'] }))}
-                      style={{
-                        padding: '0.2rem 0.5rem',
-                        fontSize: '0.7rem',
-                        borderRadius: '4px',
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-secondary)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Ciberpunk Neón
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNew3DArtwork((prev) => ({ ...prev, palette: ['#10b981', '#6366f1', '#18181b'] }))}
-                      style={{
-                        padding: '0.2rem 0.5rem',
-                        fontSize: '0.7rem',
-                        borderRadius: '4px',
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-secondary)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Esmeralda & Silicio
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNew3DArtwork((prev) => ({ ...prev, palette: ['#e2e8f0', '#64748b', '#020617'] }))}
-                      style={{
-                        padding: '0.2rem 0.5rem',
-                        fontSize: '0.7rem',
-                        borderRadius: '4px',
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-secondary)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Monocromo Zen
-                    </button>
-                  </div>
-                </div>
-
-                {/* 8. Exclusive Checkbox */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <input
-                    type="checkbox"
-                    id="exclusive3DCheck"
-                    checked={new3DArtwork.isExclusive}
-                    onChange={(e) => setNew3DArtwork({ ...new3DArtwork, isExclusive: e.target.checked })}
-                  />
-                  <label htmlFor="exclusive3DCheck" style={{ fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
-                    🔒 Obra Exclusiva para Miembros VIP
-                  </label>
-                </div>
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={isUploading3DImage}
-                  className="btn-primary"
-                  style={{
-                    padding: '0.9rem',
-                    fontSize: '1rem',
-                    fontWeight: 700,
-                    boxShadow: '0 4px 15px rgba(212, 175, 55, 0.3)',
-                  }}
-                >
-                  💾 Guardar Obra 3D en Firebase & Publicar en Sala
-                </button>
-              </form>
-            </div>
-
-            {/* Right Column: Registered 3D Artworks Live Directory */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.8rem' }}>
-              <div className="glass-panel" style={{ padding: '1.8rem', borderRadius: 'var(--radius-lg)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.2rem' }}>
-                  <div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-                      Obras en Salas Tridimensionales ({gallery3dArtworks?.length ?? 0})
-                    </h3>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      Sincronizadas en tiempo real con Firestore y los motores WebGL.
-                    </p>
-                  </div>
-
-                  {/* Room Filter */}
                   <select
-                    className="input-field"
-                    style={{ width: 'auto', fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
+                    className="input-field text-xs sm:text-sm py-2 sm:w-56 cursor-pointer"
                     value={filter3DRoom}
                     onChange={(e) => setFilter3DRoom(e.target.value)}
                   >
@@ -2546,286 +2370,705 @@ export default function AdminDashboardPage() {
                   </select>
                 </div>
 
-                {/* Artworks List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '720px', overflowY: 'auto', paddingRight: '0.3rem' }}>
-                  {(gallery3dArtworks || [])
-                    .filter((art) => (filter3DRoom === 'all' ? true : art.roomId === filter3DRoom))
-                    .map((item) => {
-                      const isConfirming = deleting3DArtworkId === item.id;
-                      const roomObj = DEFAULT_VIRTUAL_ROOMS.find((r) => r.id === item.roomId);
+                <button
+                  type="button"
+                  onClick={() => {
+                    reset3DArtworkForm();
+                    setGallery3DSubView('editor');
+                  }}
+                  className="btn-cyan py-2.5 px-5 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] shrink-0"
+                >
+                  <Plus size={16} /> Añadir Obra a Sala 3D
+                </button>
+              </div>
 
-                      return (
-                        <div
-                          key={item.id}
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'row',
-                            gap: '1rem',
-                            padding: '1rem',
-                            borderRadius: 'var(--radius-md)',
-                            background: 'rgba(0, 0, 0, 0.4)',
-                            border: '1px solid var(--border-subtle)',
-                            alignItems: 'flex-start',
-                          }}
-                        >
-                          <img
-                            src={item.imageUrl}
-                            alt={item.title}
-                            style={{
-                              width: '90px',
-                              height: '90px',
-                              objectFit: 'cover',
-                              borderRadius: 'var(--radius-sm)',
-                              border: '1px solid rgba(212, 175, 55, 0.3)',
-                              flexShrink: 0,
-                            }}
-                          />
+              {/* Artworks Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filtered3DArtworks.map((item) => {
+                  const isConfirming = deleting3DArtworkId === item.id;
+                  const roomObj = DEFAULT_VIRTUAL_ROOMS.find((r) => r.id === item.roomId);
 
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
-                              <span
-                                style={{
-                                  fontSize: '0.65rem',
-                                  padding: '0.15rem 0.5rem',
-                                  borderRadius: '4px',
-                                  background: 'rgba(212, 175, 55, 0.15)',
-                                  color: 'var(--accent-gold)',
-                                  fontWeight: 700,
-                                }}
-                              >
-                                {roomObj ? roomObj.name : item.roomName || item.roomId}
-                              </span>
-                              {item.year && (
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                  ({item.year})
-                                </span>
-                              )}
-                              {item.isExclusive && (
-                                <span style={{ fontSize: '0.65rem', color: '#fbbf24', fontWeight: 700 }}>
-                                  🔒 VIP
-                                </span>
-                              )}
-                            </div>
-
-                            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff', marginBottom: '0.2rem' }}>
-                              {item.title}
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
-                              {item.artist} • <span style={{ color: 'var(--text-muted)' }}>{item.medium}</span>
-                            </div>
-
-                            {/* Palette preview */}
-                            {item.palette && item.palette.length > 0 && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.5rem' }}>
-                                {item.palette.map((hex, i) => (
-                                  <span
-                                    key={i}
-                                    style={{
-                                      width: '10px',
-                                      height: '10px',
-                                      borderRadius: '50%',
-                                      background: hex,
-                                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Actions */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.4rem' }}>
-                              {isConfirming ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleConfirmDelete3DArtwork(item.id, item.title)}
-                                    style={{
-                                      color: '#fff',
-                                      background: '#dc2626',
-                                      border: 'none',
-                                      borderRadius: '4px',
-                                      padding: '0.3rem 0.6rem',
-                                      cursor: 'pointer',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 700,
-                                    }}
-                                  >
-                                    Confirmar Eliminación
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setDeleting3DArtworkId(null)}
-                                    style={{
-                                      color: 'var(--text-muted)',
-                                      background: 'rgba(255,255,255,0.1)',
-                                      border: 'none',
-                                      borderRadius: '4px',
-                                      padding: '0.3rem 0.5rem',
-                                      cursor: 'pointer',
-                                      fontSize: '0.75rem',
-                                    }}
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setDeleting3DArtworkId(item.id)}
-                                  style={{
-                                    color: '#f87171',
-                                    fontSize: '0.75rem',
-                                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                                    background: 'none',
-                                    borderRadius: '4px',
-                                    padding: '0.25rem 0.55rem',
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.3rem',
-                                  }}
-                                >
-                                  <Trash2 size={13} /> Eliminar de Sala
-                                </button>
-                              )}
-                            </div>
-                          </div>
+                  return (
+                    <div
+                      key={item.id}
+                      className="glass-panel rounded-2xl overflow-hidden border border-white/10 flex flex-col group hover:border-[#06B6D4]/40 transition-all duration-300"
+                    >
+                      <div className="relative aspect-[16/10] bg-black/40 overflow-hidden">
+                        <img
+                          src={item.imageUrl}
+                          alt={item.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                          <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-black/70 backdrop-blur-md text-[#06B6D4] border border-[#06B6D4]/40 font-bold">
+                            {roomObj ? roomObj.name : item.roomName || item.roomId}
+                          </span>
                         </div>
-                      );
-                    })}
+                        {item.isExclusive && (
+                          <div className="absolute top-2.5 right-2.5">
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 backdrop-blur-md text-amber-300 border border-amber-500/40 font-bold">
+                              🔒 VIP
+                            </span>
+                          </div>
+                        )}
+                      </div>
 
-                  {(gallery3dArtworks || []).length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
-                      <Box size={32} style={{ margin: '0 auto 0.8rem auto', opacity: 0.4 }} />
-                      <p style={{ fontSize: '0.9rem' }}>No hay obras 3D registradas aún.</p>
-                      <p style={{ fontSize: '0.8rem' }}>Utiliza el formulario de la izquierda para dar de alta la primera obra.</p>
+                      <div className="p-5 flex-1 flex flex-col justify-between gap-4">
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <h4 className="font-syne font-bold text-base text-white truncate" title={item.title}>
+                              {item.title}
+                            </h4>
+                            {item.year && (
+                              <span className="text-xs font-mono text-[#94A3B8]">({item.year})</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-300 font-medium truncate">
+                            {item.artist} • <span className="text-[#94A3B8]">{item.medium}</span>
+                          </p>
+
+                          {item.analysis && (
+                            <p className="text-xs text-[#94A3B8] mt-2 line-clamp-2 leading-relaxed">
+                              {item.analysis}
+                            </p>
+                          )}
+
+                          {item.palette && item.palette.length > 0 && (
+                            <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-white/5">
+                              <span className="text-[10px] font-mono text-[#94A3B8] mr-1">Paleta:</span>
+                              {item.palette.map((hex, i) => (
+                                <span
+                                  key={i}
+                                  className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm"
+                                  style={{ backgroundColor: hex }}
+                                  title={hex}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEdit3DArtworkClick(item)}
+                            className="text-xs text-[#06B6D4] hover:text-[#38BDF8] flex items-center gap-1.5 font-semibold transition-colors"
+                          >
+                            <Edit size={14} /> Modificar
+                          </button>
+
+                          {isConfirming ? (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleConfirmDelete3DArtwork(item.id, item.title)}
+                                className="text-white bg-red-600 hover:bg-red-500 text-xs font-bold px-2.5 py-1 rounded transition-colors"
+                              >
+                                Confirmar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleting3DArtworkId(null)}
+                                className="text-slate-400 hover:text-white text-xs px-2 py-1 rounded bg-white/5"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setDeleting3DArtworkId(item.id)}
+                              className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors"
+                            >
+                              <Trash2 size={14} /> Eliminar de Sala
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {filtered3DArtworks.length === 0 && (
+                <div className="glass-panel p-12 rounded-2xl text-center text-[#94A3B8] border border-white/10">
+                  <Box size={36} className="mx-auto mb-3 opacity-40 text-[#06B6D4]" />
+                  <p className="font-semibold text-white">No hay obras 3D encontradas</p>
+                  <p className="text-xs mt-1 text-slate-400">
+                    {artwork3DSearchQuery || filter3DRoom !== 'all'
+                      ? 'No hay obras que coincidan con los filtros seleccionados.'
+                      : 'Utiliza el botón superior para dar de alta la primera obra en el pabellón 3D.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Subview: 3D Artwork Editor */
+            <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-white/10 max-w-4xl mx-auto w-full">
+              <div className="border-b border-white/10 pb-5 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-bold font-syne text-white flex items-center gap-2">
+                    {editing3DArtworkId ? (
+                      <>
+                        <Edit size={20} className="text-amber-400" /> Modificar Obra 3D Existente
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud size={20} className="text-[#06B6D4]" /> Alta de Obra para Estancia Tridimensional
+                      </>
+                    )}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-[#94A3B8] mt-1">
+                    Carga los metadatos curatoriales, la paleta cromática y la textura en alta resolución para el motor 3D.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    reset3DArtworkForm();
+                    setGallery3DSubView('list');
+                  }}
+                  className="btn-secondary py-2 px-4 text-xs flex items-center gap-1.5 self-start sm:self-auto"
+                >
+                  <ArrowLeft size={14} /> Cancelar y Volver
+                </button>
+              </div>
+
+              <form onSubmit={handleCreate3DArtwork} className="flex flex-col gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold mb-1 text-slate-200">
+                      Título de la Obra *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej. Metamorfosis de la Luz Sintética"
+                      className="input-field text-sm"
+                      value={new3DArtwork.title}
+                      onChange={(e) => setNew3DArtwork({ ...new3DArtwork, title: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-200">
+                      Estancia / Sala Virtual de Destino *
+                    </label>
+                    <select
+                      className="input-field text-sm cursor-pointer"
+                      value={new3DArtwork.roomId}
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        const roomObj = DEFAULT_VIRTUAL_ROOMS.find((r) => r.id === selectedId);
+                        setNew3DArtwork({
+                          ...new3DArtwork,
+                          roomId: selectedId,
+                          roomName: roomObj ? roomObj.name : selectedId,
+                        });
+                      }}
+                    >
+                      {DEFAULT_VIRTUAL_ROOMS.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name} — ({r.subtitle})
+                        </option>
+                      ))}
+                      <option value="sala-personalizada">✨ Nueva Sala Personalizada</option>
+                    </select>
+                  </div>
+
+                  {new3DArtwork.roomId === 'sala-personalizada' && (
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-200">
+                        Nombre de la Sala Personalizada
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ej. Ala de Arte Cuántico"
+                        className="input-field text-sm"
+                        value={new3DArtwork.roomName}
+                        onChange={(e) => setNew3DArtwork({ ...new3DArtwork, roomName: e.target.value })}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-200">
+                      Artista / Estudio Creador
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej. Lola Work Studio & Algoritmo"
+                      className="input-field text-sm"
+                      value={new3DArtwork.artist}
+                      onChange={(e) => setNew3DArtwork({ ...new3DArtwork, artist: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-200">
+                      Año de Creación
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="2026"
+                      className="input-field text-sm"
+                      value={new3DArtwork.year}
+                      onChange={(e) => setNew3DArtwork({ ...new3DArtwork, year: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold mb-1 text-slate-200">
+                      Técnica / Medio Computacional
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej. Render Unreal Engine 5.4 & Postproceso Digital"
+                      className="input-field text-sm"
+                      value={new3DArtwork.medium}
+                      onChange={(e) => setNew3DArtwork({ ...new3DArtwork, medium: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Storage Upload Box */}
+                <div className="p-5 rounded-xl border border-[#06B6D4]/30 bg-black/30 flex flex-col gap-4">
+                  <label className="block text-xs font-bold text-[#06B6D4] uppercase tracking-wider font-mono">
+                    🖼️ Textura / Imagen para la Sala 3D (Firebase Storage Bucket) *
+                  </label>
+
+                  <div className="flex gap-3 items-center flex-wrap">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="artwork3dFileInput"
+                      style={{ display: 'none' }}
+                      onChange={handle3DImageFileUpload}
+                      disabled={isUploading3DImage}
+                    />
+                    <label
+                      htmlFor="artwork3dFileInput"
+                      className="btn-cyan py-2.5 px-4 text-xs cursor-pointer inline-flex items-center gap-2 font-bold"
+                    >
+                      <UploadCloud size={16} /> Subir Textura desde el Equipo
+                    </label>
+
+                    {isUploading3DImage && (
+                      <span className="text-xs text-[#06B6D4] font-semibold animate-pulse">
+                        ⚡ Subiendo al Bucket de Storage...
+                      </span>
+                    )}
+                  </div>
+
+                  {upload3DStatus && (
+                    <div
+                      className={`text-xs font-medium ${
+                        upload3DStatus.isError ? 'text-amber-400' : 'text-emerald-400'
+                      }`}
+                    >
+                      {upload3DStatus.message}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs text-[#94A3B8] mb-1">O ingresa una URL directa de textura HD:</label>
+                    <input
+                      type="url"
+                      required
+                      placeholder="https://images.unsplash.com/..."
+                      className="input-field text-xs font-mono"
+                      value={new3DArtwork.imageUrl}
+                      onChange={(e) => setNew3DArtwork({ ...new3DArtwork, imageUrl: e.target.value })}
+                    />
+                  </div>
+
+                  {new3DArtwork.imageUrl && (
+                    <div className="flex items-center gap-4 p-3 bg-black/40 rounded-xl border border-white/10">
+                      <img
+                        src={new3DArtwork.imageUrl}
+                        alt="Previsualización 3D"
+                        className="w-24 h-16 object-cover rounded-lg border border-white/20"
+                      />
+                      <div className="overflow-hidden">
+                        <div className="text-xs font-bold text-white">Textura Lista para Render 3D</div>
+                        <div className="text-[11px] text-[#94A3B8] truncate max-w-sm">
+                          {new3DArtwork.imageUrl}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
-              </div>
+
+                {/* Curatorial Analysis */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-slate-200">
+                    Cédula Curatorial &amp; Concepto de la Obra en Sala
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Describe el concepto, iluminación y diálogo espacial en la sala 3D..."
+                    className="input-field text-sm"
+                    value={new3DArtwork.analysis}
+                    onChange={(e) => setNew3DArtwork({ ...new3DArtwork, analysis: e.target.value })}
+                  />
+                </div>
+
+                {/* Color Palette Picker */}
+                <div className="p-5 rounded-xl border border-white/10 bg-black/20 flex flex-col gap-4">
+                  <label className="flex items-center gap-2 text-xs font-bold text-[#06B6D4] uppercase tracking-wider font-mono">
+                    <Palette size={16} /> Paleta Cromática de la Estancia
+                  </label>
+
+                  {/* Active Swatches */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {new3DArtwork.palette.map((color) => (
+                      <span
+                        key={color}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white"
+                      >
+                        <span
+                          className="w-3.5 h-3.5 rounded-full border border-white/30"
+                          style={{ backgroundColor: color }}
+                        />
+                        <span className="font-mono text-[11px]">{color}</span>
+                        {new3DArtwork.palette.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveColorFromPalette(color)}
+                            className="text-slate-400 hover:text-white p-0.5 ml-1 text-xs"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Add Color Input */}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <input
+                      type="color"
+                      value={customColorInput}
+                      onChange={(e) => setCustomColorInput(e.target.value)}
+                      className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border border-white/20 p-1"
+                    />
+                    <input
+                      type="text"
+                      placeholder="#06B6D4"
+                      className="input-field text-xs font-mono w-28"
+                      value={customColorInput}
+                      onChange={(e) => setCustomColorInput(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddColorToPalette}
+                      className="btn-secondary py-2 px-4 text-xs font-bold flex items-center gap-1.5"
+                    >
+                      <Plus size={14} /> Añadir Color
+                    </button>
+                  </div>
+
+                  {/* Presets */}
+                  <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-white/5">
+                    <span className="text-[11px] text-[#94A3B8]">Presets rápidos:</span>
+                    {[
+                      { name: 'Cyber Solarpunk', colors: ['#06B6D4', '#4F46E5', '#08090E'] },
+                      { name: 'Neón Sintético', colors: ['#f43f5e', '#38bdf8', '#1e1b4b'] },
+                      { name: 'Esmeralda Cuántica', colors: ['#10b981', '#6366f1', '#18181b'] },
+                      { name: 'Monocromo Zen', colors: ['#f8fafc', '#64748b', '#020617'] },
+                    ].map((preset) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => setNew3DArtwork((prev) => ({ ...prev, palette: preset.colors }))}
+                        className="text-[11px] px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition-colors"
+                      >
+                        {preset.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 p-3 rounded-lg bg-black/20 border border-white/10">
+                  <input
+                    type="checkbox"
+                    id="exclusive3DCheck"
+                    className="rounded border-white/20 text-[#06B6D4] focus:ring-0"
+                    checked={new3DArtwork.isExclusive}
+                    onChange={(e) => setNew3DArtwork({ ...new3DArtwork, isExclusive: e.target.checked })}
+                  />
+                  <label htmlFor="exclusive3DCheck" className="text-xs font-semibold text-slate-200 cursor-pointer">
+                    🔒 Obra Exclusiva para Miembros VIP
+                  </label>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      reset3DArtworkForm();
+                      setGallery3DSubView('list');
+                    }}
+                    className="btn-secondary w-full sm:w-auto text-xs py-2.5 px-5 flex items-center justify-center gap-2"
+                  >
+                    <ArrowLeft size={14} /> Cancelar y Volver
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="btn-cyan w-full sm:w-auto text-sm py-3 px-8 font-bold flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+                  >
+                    {editing3DArtworkId ? '💾 Actualizar Obra en Firestore' : '🚀 Guardar Obra 3D en Firebase'}
+                  </button>
+                </div>
+              </form>
             </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* TAB: CRÍTICA DE ARTE */}
-      {/* TAB: CRÍTICA DE ARTE IA */}
+      {/* TAB 4: CRÍTICA DE ARTE IA */}
       {activeTab === 'art-critique' && (
-        <div className="glass-panel rounded-2xl border border-white/5 overflow-hidden flex flex-col p-6 md:p-8 gap-6">
+        <div className="glass-panel rounded-2xl border border-white/10 overflow-hidden flex flex-col p-6 md:p-8 gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <h2 className="font-syne font-bold text-2xl text-white">Crítica de Arte Visual</h2>
-                <span className="font-mono text-[10px] px-2 py-0.5 bg-[#06B6D4]/10 text-[#06B6D4] border border-[#06B6D4]/30 rounded uppercase tracking-wider">
+                <span className="font-mono text-[10px] px-2.5 py-1 bg-[#06B6D4]/15 text-[#06B6D4] border border-[#06B6D4]/30 rounded uppercase tracking-wider font-bold">
                   VISUAL CRITIQUE
                 </span>
               </div>
-              <p className="text-[#94A3B8] text-sm font-sans">
-                Evaluación visual y técnica de obras con IA, generación de críticas estéticas y exportación a PDF.
+              <p className="text-[#94A3B8] text-xs sm:text-sm">
+                Evaluación visual y técnica de obras con IA, generación de críticas estéticas curatoriales y exportación a PDF.
               </p>
             </div>
           </div>
 
-          <ArtCritiqueTool user={user as any} initialTab="critique" />
+          <ArtCritiqueTool user={user as any} initialTab="critique" hideNavigationTabs={true} />
         </div>
       )}
 
-      {/* TAB: INVESTIGACIONES / RESEARCHES IA */}
+      {/* TAB 5: INVESTIGACIONES / RESEARCHES IA */}
       {activeTab === 'researches' && (
-        <div className="glass-panel rounded-2xl border border-white/5 overflow-hidden flex flex-col p-6 md:p-8 gap-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4 px-[15px]">
-            <div className="pl-[15px]">
+        <div className="glass-panel rounded-2xl border border-white/10 overflow-hidden flex flex-col p-6 md:p-8 gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div>
               <div className="flex items-center gap-3 mb-1">
                 <h2 className="font-syne font-bold text-2xl text-white">Atelier de Investigación de Artistas &amp; Researches IA</h2>
-                <span className="font-mono text-[10px] px-2.5 py-1 bg-[#06B6D4]/10 text-[#06B6D4] border border-[#06B6D4]/30 rounded uppercase tracking-wider font-bold">
+                <span className="font-mono text-[10px] px-2.5 py-1 bg-[#06B6D4]/15 text-[#06B6D4] border border-[#06B6D4]/30 rounded uppercase tracking-wider font-bold">
                   RESEARCH ATELIER
                 </span>
               </div>
-              <p className="text-[#94A3B8] text-sm font-sans">
+              <p className="text-[#94A3B8] text-xs sm:text-sm">
                 Investigaciones profundas sobre artistas y movimientos culturales, generación de guiones de video para YouTube y descarga directa en formato CSV/Excel.
               </p>
             </div>
           </div>
 
-          <div className="px-[15px]">
-            <ArtCritiqueTool user={user as any} initialTab="research" />
-          </div>
+          <ResearchAtelier user={user as any} />
         </div>
       )}
 
-      {/* TAB 3: USERS MANAGEMENT */}
+      {/* TAB 6: USERS MANAGEMENT */}
       {activeTab === 'users' && (
-        <div className="glass-panel" style={{ padding: '2rem' }}>
-          <h3 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '1.5rem' }}>
-            Lista de Usuarios & Roles de Acceso ({usersList.length})
-          </h3>
+        <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-white/10 flex flex-col gap-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
+            <div>
+              <h3 className="text-xl font-bold font-syne text-white flex items-center gap-2">
+                <Icons.User size={22} className="text-[#06B6D4]" />
+                Lista de Usuarios &amp; Roles de Acceso ({usersList.length})
+              </h3>
+              <p className="text-xs sm:text-sm text-[#94A3B8] mt-1">
+                Administra los privilegios de los miembros y la asignación de roles en la plataforma.
+              </p>
+            </div>
+          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {usersList.map((u) => (
+          {/* Search & Role Filter */}
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+            <div className="relative flex-1 max-w-md">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre, usuario o email..."
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                className="input-field text-xs sm:text-sm pl-10 py-2 w-full"
+              />
+              {userSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setUserSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {[
+                { label: 'Todos', value: 'all' },
+                { label: 'Administradores', value: 'admin' },
+                { label: 'Miembros VIP', value: 'member' },
+              ].map((rf) => (
+                <button
+                  key={rf.value}
+                  type="button"
+                  onClick={() => setSelectedUserRoleFilter(rf.value as any)}
+                  className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors border ${
+                    selectedUserRoleFilter === rf.value
+                      ? 'bg-[#06B6D4]/20 border-[#06B6D4] text-[#06B6D4] font-bold'
+                      : 'border-white/10 text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {rf.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Users List */}
+          <div className="flex flex-col gap-3">
+            {filteredUsersList.map((u) => (
               <div
                 key={u.id}
-                style={{
-                  padding: '1.2rem',
-                  background: 'rgba(0,0,0,0.3)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-sm)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '1rem',
-                }}
+                className="p-4 rounded-xl bg-black/30 border border-white/10 flex items-center justify-between flex-wrap gap-4 hover:border-white/20 transition-colors"
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <img src={u.avatarUrl} alt={u.name} style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover' }} />
+                <div className="flex items-center gap-3">
+                  <img
+                    src={u.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.id}`}
+                    alt={u.name}
+                    className="w-11 h-11 rounded-full object-cover border border-white/20"
+                  />
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{u.name}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    <div className="font-bold text-sm text-white flex items-center gap-2">
+                      {u.name}
+                      {u.role === 'admin' && (
+                        <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-[#06B6D4]/20 text-[#06B6D4] border border-[#06B6D4]/40 font-bold uppercase">
+                          ADMIN
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-[#94A3B8] mt-0.5">
                       @{u.username} • {u.email}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div className="flex items-center gap-3">
                   {u.role === 'admin' ? (
-                    <span className="badge badge-admin">Rol: Administrador</span>
+                    <span className="font-mono text-[11px] px-3 py-1 rounded-full bg-[#06B6D4]/15 text-[#06B6D4] border border-[#06B6D4]/30 font-bold">
+                      Rol: Administrador
+                    </span>
                   ) : (
-                    <span className="badge badge-vip">Rol: Miembro VIP</span>
+                    <span className="font-mono text-[11px] px-3 py-1 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 font-bold">
+                      Rol: Miembro VIP
+                    </span>
                   )}
 
                   <button
+                    type="button"
                     onClick={() => updateUserRole(u.id, u.role === 'admin' ? 'member' : 'admin')}
-                    className="btn-secondary"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', cursor: 'pointer' }}
+                    className="btn-secondary py-1.5 px-3 text-xs font-semibold cursor-pointer"
                   >
-                    {u.role === 'admin' ? 'Cambiar a Miembro' : 'Promover a Admin'}
+                    {u.role === 'admin' ? 'Degradar a Miembro' : 'Promover a Admin'}
                   </button>
                 </div>
               </div>
             ))}
+
+            {filteredUsersList.length === 0 && (
+              <div className="p-8 text-center text-[#94A3B8] border border-white/10 rounded-xl">
+                No se encontraron usuarios con ese criterio.
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* TAB 4: ANALYTICS & FINANCES */}
+      {/* TAB 7: ANALYTICS & FINANCES */}
       {activeTab === 'analytics' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '2rem' }}>
-          <div className="glass-panel" style={{ padding: '2rem' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>VISITAS TOTALES MES</div>
-            <div style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--accent-gold)' }}>142,850</div>
-            <div style={{ fontSize: '0.8rem', color: '#4ade80', marginTop: '0.4rem' }}>+18.4% vs mes anterior</div>
+        <div className="flex flex-col gap-6">
+          <div className="glass-panel p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-white/10">
+            <div>
+              <h2 className="text-xl font-bold font-syne text-white flex items-center gap-2">
+                <Icons.BarChart size={22} className="text-[#06B6D4]" />
+                Métricas, Rendimiento &amp; Estado de la Plataforma
+              </h2>
+              <p className="text-xs sm:text-sm text-[#94A3B8] mt-1">
+                Resumen de actividad editorial, interacción de la audiencia y sincronización de recursos.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/10">
+              {[
+                { id: '7d', label: '7 Días' },
+                { id: '30d', label: '30 Días' },
+                { id: '1y', label: '1 Año' },
+              ].map((tf) => (
+                <button
+                  key={tf.id}
+                  type="button"
+                  onClick={() => setAnalyticsTimeframe(tf.id as any)}
+                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                    analyticsTimeframe === tf.id
+                      ? 'bg-[#06B6D4] text-black font-bold'
+                      : 'text-[#94A3B8] hover:text-white'
+                  }`}
+                >
+                  {tf.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="glass-panel" style={{ padding: '2rem' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>SUSCRIPTORES VIP ACTIVOS</div>
-            <div style={{ fontSize: '2.2rem', fontWeight: 800, color: '#c084fc' }}>1,480</div>
-            <div style={{ fontSize: '0.8rem', color: '#4ade80', marginTop: '0.4rem' }}>+92 nuevos este mes</div>
-          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="glass-panel p-6 rounded-2xl border border-white/10 bg-gradient-to-br from-[#06B6D4]/5 to-transparent">
+              <div className="text-xs font-mono uppercase tracking-wider text-[#06B6D4] mb-2 font-bold">
+                PUBLICACIONES BLOG
+              </div>
+              <div className="text-3xl font-bold font-syne text-white">{blogPosts.length}</div>
+              <div className="text-xs text-emerald-400 mt-2 font-medium flex items-center gap-1">
+                <Check size={14} /> 100% Optimizadas SEO &amp; GEO
+              </div>
+            </div>
 
-          <div className="glass-panel" style={{ padding: '2rem' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>INGRESOS MENSUALES ESTIMADOS</div>
-            <div style={{ fontSize: '2.2rem', fontWeight: 800, color: '#4ade80' }}>€37,000</div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>Membresías + Presets Shop</div>
+            <div className="glass-panel p-6 rounded-2xl border border-white/10 bg-gradient-to-br from-indigo-500/5 to-transparent">
+              <div className="text-xs font-mono uppercase tracking-wider text-indigo-400 mb-2 font-bold">
+                CATÁLOGO 2D &amp; 3D
+              </div>
+              <div className="text-3xl font-bold font-syne text-white">
+                {galleryItems.length + (gallery3dArtworks?.length ?? 0)}
+              </div>
+              <div className="text-xs text-[#94A3B8] mt-2">
+                {galleryItems.length} en 2D • {gallery3dArtworks?.length ?? 0} en Salas 3D
+              </div>
+            </div>
+
+            <div className="glass-panel p-6 rounded-2xl border border-white/10 bg-gradient-to-br from-purple-500/5 to-transparent">
+              <div className="text-xs font-mono uppercase tracking-wider text-purple-400 mb-2 font-bold">
+                USUARIOS REGISTRADOS
+              </div>
+              <div className="text-3xl font-bold font-syne text-white">{usersList.length}</div>
+              <div className="text-xs text-emerald-400 mt-2 font-medium">
+                +{usersList.filter((u) => u.role === 'admin').length} Administradores activos
+              </div>
+            </div>
+
+            <div className="glass-panel p-6 rounded-2xl border border-white/10 bg-gradient-to-br from-emerald-500/5 to-transparent">
+              <div className="text-xs font-mono uppercase tracking-wider text-emerald-400 mb-2 font-bold">
+                INGRESOS ESTIMADOS
+              </div>
+              <div className="text-3xl font-bold font-syne text-emerald-400">
+                €{analyticsTimeframe === '7d' ? '8,450' : analyticsTimeframe === '30d' ? '37,000' : '412,000'}
+              </div>
+              <div className="text-xs text-[#94A3B8] mt-2">
+                Membresías VIP + Presets Shop
+              </div>
+            </div>
           </div>
         </div>
       )}

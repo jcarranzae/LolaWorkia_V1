@@ -4,11 +4,11 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter } from '@/context/NavigationContext';
 import { useAuth } from '@/context/AuthContext';
 import { Icons } from '@/components/Icons';
-import { Lock, Key, ShieldCheck, Cpu } from 'lucide-react';
+import { Lock, UserCheck, ShieldCheck, Sparkles, ArrowRight } from 'lucide-react';
 
 function LoginForm() {
   const router = useRouter();
-  const { user, login, loginWithGoogle, register } = useAuth();
+  const { user, login, loginWithGoogle, register, quickLoginAsAdmin, quickLoginAsMember } = useAuth();
 
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [username, setUsername] = useState('');
@@ -38,20 +38,20 @@ function LoginForm() {
       if (isRegisterMode) {
         const res = await register(name, username, email, password);
         if (!res.success) {
-          setErrorMessage(res.message || 'Error registering patron node.');
+          setErrorMessage(res.message || 'Error al registrar la nueva cuenta.');
         }
       } else {
         const inputToLogin = email.trim() || username.trim();
         const res = await login(inputToLogin, password);
         if (!res.success) {
-          setErrorMessage(res.message || 'Authentication error.');
+          setErrorMessage(res.message || 'Error de autenticación. Verifica tus credenciales.');
         } else if (res.role) {
           if (res.role === 'admin') router.push('/miembros/admin');
           else router.push('/miembros');
         }
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Unexpected protocol error.');
+      setErrorMessage(err.message || 'Error inesperado en el servidor de autenticación.');
     } finally {
       setIsSubmitting(false);
     }
@@ -63,108 +63,77 @@ function LoginForm() {
     try {
       const res = await loginWithGoogle();
       if (!res.success) {
-        setErrorMessage(res.message || 'Failed Google authentication handshake.');
+        setErrorMessage(res.message || 'No se pudo completar el acceso con Google.');
       } else if (res.role) {
         if (res.role === 'admin') router.push('/miembros/admin');
         else router.push('/miembros');
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'OAuth identity provider failure.');
+      setErrorMessage(err.message || 'Error al conectar con el proveedor de Google.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '3.2rem 2.8rem', border: '1px solid var(--border-glow)', boxShadow: 'var(--shadow-glow)' }}>
-      {/* Header (DESIGN.md §3) */}
-      <div style={{ textAlign: 'center', marginBottom: '2.4rem' }}>
-        <div
-          style={{
-            width: '58px',
-            height: '58px',
-            borderRadius: '16px',
-            background: 'linear-gradient(135deg, var(--accent-indigo) 0%, var(--neon-cyan) 100%)',
-            color: '#ffffff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 1.2rem auto',
-            boxShadow: '0 0 30px rgba(6, 182, 212, 0.4)',
-          }}
-        >
-          <Lock size={26} />
+    <div className="glass-panel p-6 sm:p-10 rounded-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#4F46E5] to-[#06B6D4] text-white flex items-center justify-center mx-auto mb-4 shadow-[0_0_25px_rgba(6,182,212,0.35)]">
+          {isRegisterMode ? <UserCheck size={28} /> : <Lock size={26} />}
         </div>
 
-        <h1 className="heading-card" style={{ fontSize: '1.7rem' }}>
-          {isRegisterMode ? 'REGISTER PATRON NODE' : 'PATRON AUTHENTICATION'}
+        <h1 className="font-syne text-2xl sm:text-3xl font-bold text-white mb-2">
+          {isRegisterMode ? 'Registro de Nuevo Miembro' : 'Acceso de Miembros & Admin'}
         </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', marginTop: '0.6rem', lineHeight: '1.6' }}>
+        <p className="text-sm text-[#94A3B8] max-w-sm mx-auto leading-relaxed">
           {isRegisterMode
-            ? 'Initialize your collector identity to unlock exclusive 3D pavilion stanzas.'
-            : 'Authenticate your cryptographic patron node to access uncompressed assets.'}
+            ? 'Crea tu cuenta de miembro para acceder al catálogo completo, salas 3D y herramientas de creación.'
+            : 'Inicia sesión para acceder a la galería 3D, el atelier de investigación y contenidos exclusivos.'}
         </p>
       </div>
 
-      {/* Google Login Provider */}
-      <div style={{ marginBottom: '1.8rem' }}>
+      {/* Google Login Button */}
+      <div className="mb-6">
         <button
           type="button"
           onClick={handleGoogleLogin}
           disabled={isSubmitting}
-          className="btn-secondary"
-          style={{
-            width: '100%',
-            padding: '0.85rem',
-            fontSize: '0.9rem',
-            opacity: isSubmitting ? 0.7 : 1,
-            justifyContent: 'center',
-          }}
+          className="w-full py-3 px-4 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white font-medium text-sm flex items-center justify-center gap-3 transition-all duration-200 hover:border-white/30 disabled:opacity-50"
         >
           <Icons.Google size={18} />
-          <span>{isSubmitting ? 'Verifying Handshake...' : 'Authenticate with Google'}</span>
+          <span>{isSubmitting ? 'Verificando con Google...' : 'Continuar con Google'}</span>
         </button>
       </div>
 
       {/* Divider */}
-      <div style={{ display: 'flex', alignItems: 'center', margin: '1.8rem 0', gap: '1rem' }}>
-        <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }}></div>
-        <span className="mono-meta" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-          OR VIA EMAIL CREDENTIALS
+      <div className="flex items-center gap-4 my-6">
+        <div className="flex-1 h-px bg-white/10" />
+        <span className="font-mono text-[11px] text-[#94A3B8] uppercase tracking-wider">
+          O con tus credenciales
         </span>
-        <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }}></div>
+        <div className="flex-1 h-px bg-white/10" />
       </div>
 
       {/* Error Alert */}
       {errorMessage && (
-        <div
-          style={{
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
-            padding: '0.85rem 1.2rem',
-            borderRadius: 'var(--radius-sm)',
-            color: '#f87171',
-            fontSize: '0.85rem',
-            marginBottom: '1.5rem',
-            fontFamily: 'var(--font-mono)',
-          }}
-        >
+        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs sm:text-sm font-medium">
           {errorMessage}
         </div>
       )}
 
       {/* Email / Password Form */}
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {isRegisterMode && (
           <div>
-            <label className="mono-meta" style={{ display: 'block', color: 'var(--neon-cyan)', marginBottom: '0.4rem' }}>
-              FULL NAME
+            <label className="block text-xs font-semibold text-[#06B6D4] mb-1.5 uppercase font-mono tracking-wider">
+              Nombre Completo *
             </label>
             <input
               type="text"
               required
-              placeholder="e.g. Maya Lin"
-              className="input-field"
+              placeholder="Ej. Lola Romero"
+              className="input-field text-sm"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -173,14 +142,14 @@ function LoginForm() {
 
         {isRegisterMode && (
           <div>
-            <label className="mono-meta" style={{ display: 'block', color: 'var(--neon-cyan)', marginBottom: '0.4rem' }}>
-              NODE USERNAME
+            <label className="block text-xs font-semibold text-[#06B6D4] mb-1.5 uppercase font-mono tracking-wider">
+              Nombre de Usuario *
             </label>
             <input
               type="text"
               required
-              placeholder="mayalin_node"
-              className="input-field"
+              placeholder="lolaromero"
+              className="input-field text-sm"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
             />
@@ -188,14 +157,14 @@ function LoginForm() {
         )}
 
         <div>
-          <label className="mono-meta" style={{ display: 'block', color: 'var(--neon-cyan)', marginBottom: '0.4rem' }}>
-            {isRegisterMode ? 'EMAIL ADDRESS' : 'EMAIL ADDRESS OR USERNAME'}
+          <label className="block text-xs font-semibold text-[#06B6D4] mb-1.5 uppercase font-mono tracking-wider">
+            {isRegisterMode ? 'Correo Electrónico *' : 'Correo Electrónico o Usuario *'}
           </label>
           <input
             type={isRegisterMode ? 'email' : 'text'}
             required
-            placeholder={isRegisterMode ? 'node@domain.xyz' : 'node@domain.xyz or username'}
-            className="input-field"
+            placeholder={isRegisterMode ? 'tu-email@ejemplo.com' : 'admin@lolaworkia.com o usuario'}
+            className="input-field text-sm"
             value={isRegisterMode ? email : email || username}
             onChange={(e) => {
               if (isRegisterMode) {
@@ -209,14 +178,14 @@ function LoginForm() {
         </div>
 
         <div>
-          <label className="mono-meta" style={{ display: 'block', color: 'var(--neon-cyan)', marginBottom: '0.4rem' }}>
-            PASSPHRASE
+          <label className="block text-xs font-semibold text-[#06B6D4] mb-1.5 uppercase font-mono tracking-wider">
+            Contraseña *
           </label>
           <input
             type="password"
             required
             placeholder="••••••••••••"
-            className="input-field"
+            className="input-field text-sm"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -224,27 +193,57 @@ function LoginForm() {
 
         <button
           type="submit"
-          className="btn-cyan"
+          className="btn-cyan mt-3 py-3 w-full justify-center text-sm font-bold shadow-[0_4px_15px_rgba(6,182,212,0.3)] disabled:opacity-50"
           disabled={isSubmitting}
-          style={{ padding: '0.9rem', marginTop: '0.5rem', opacity: isSubmitting ? 0.7 : 1 }}
         >
-          {isSubmitting ? 'Authenticating Protocol...' : isRegisterMode ? 'Create Patron Node' : 'Initialize Session'}
+          {isSubmitting ? (
+            'Iniciando sesión...'
+          ) : isRegisterMode ? (
+            <>Crear Cuenta de Miembro <ArrowRight size={16} /></>
+          ) : (
+            <>Iniciar Sesión <ArrowRight size={16} /></>
+          )}
         </button>
       </form>
 
       {/* Toggle login vs register mode */}
-      <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: '2rem', paddingTop: '1.5rem', textAlign: 'center' }}>
+      <div className="border-t border-white/10 mt-6 pt-5 text-center">
         <button
           type="button"
           onClick={() => {
             setIsRegisterMode(!isRegisterMode);
             setErrorMessage('');
           }}
-          className="mono-meta"
-          style={{ color: 'var(--neon-cyan)', background: 'none', border: 'none', cursor: 'pointer' }}
+          className="text-xs sm:text-sm text-[#06B6D4] hover:text-[#38BDF8] font-medium transition-colors"
         >
-          {isRegisterMode ? 'Existing node? Initialize Login' : 'New Collector? Register Patron Account'}
+          {isRegisterMode
+            ? '¿Ya tienes una cuenta registrada? Inicia Sesión'
+            : '¿No tienes cuenta todavía? Regístrate como miembro aquí'}
         </button>
+      </div>
+
+      {/* Quick Test / Development Access */}
+      <div className="border-t border-white/10 mt-6 pt-5">
+        <div className="text-[11px] font-mono text-[#94A3B8] uppercase tracking-wider text-center mb-3 flex items-center justify-center gap-1.5">
+          <Sparkles size={13} className="text-amber-400" />
+          Accesos Rápidos de Prueba (Entorno Local)
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={quickLoginAsAdmin}
+            className="py-2 px-3 rounded-lg border border-[#06B6D4]/30 bg-[#06B6D4]/10 hover:bg-[#06B6D4]/20 text-[#06B6D4] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <ShieldCheck size={14} /> Entrar como Admin
+          </button>
+          <button
+            type="button"
+            onClick={quickLoginAsMember}
+            className="py-2 px-3 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <UserCheck size={14} /> Entrar como Miembro VIP
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -252,8 +251,8 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="container" style={{ paddingTop: '4rem', maxWidth: '520px' }}>
-      <Suspense fallback={<div className="mono-meta" style={{ textAlign: 'center', padding: '3rem', color: 'var(--neon-cyan)' }}>Loading Authentication Module...</div>}>
+    <div className="container max-w-lg mx-auto px-4 py-12">
+      <Suspense fallback={<div className="font-mono text-xs text-center py-12 text-[#06B6D4]">Cargando módulo de autenticación...</div>}>
         <LoginForm />
       </Suspense>
     </div>
