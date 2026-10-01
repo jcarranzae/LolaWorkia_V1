@@ -604,6 +604,10 @@ export default function AdminDashboardPage() {
               <span className="font-mono text-[10px] px-2.5 py-1 bg-[#06B6D4]/15 text-[#06B6D4] border border-[#06B6D4]/30 rounded uppercase tracking-wider font-bold">
                 SEO &amp; GEO READY
               </span>
+              <span className="font-mono text-[10px] px-2.5 py-1 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded uppercase tracking-wider font-bold flex items-center gap-1.5" title="Sincronizado con proyecto lolaworkai">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                Firebase: Conectado
+              </span>
             </h1>
             <p className="text-[#94A3B8] text-sm leading-relaxed">
               Gestión editorial integral y publicaciones optimizadas para buscadores (Google) y motores de IA (ChatGPT, Perplexity, Gemini).
